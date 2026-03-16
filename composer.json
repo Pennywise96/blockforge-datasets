@@ -1,0 +1,30 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "blockforge/datasets",
+    "description": "A dataset/content-collection module for the Blockforge CMS.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "blockforge/cms": "@dev",
+        "laravel/framework": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Blockforge\\Datasets\\": "src/"
+        }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/Pennywise96/blockforge-cms"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Blockforge\\Datasets\\Providers\\DatasetServiceProvider"
+            ]
+        }
+    }
+}
