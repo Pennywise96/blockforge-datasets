@@ -8,9 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('cms_dataset_translations', function (Blueprint $table) {
+        Schema::create('bf_dataset_translations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('dataset_id')->constrained('cms_datasets')->cascadeOnDelete();
+            $table->foreignId('dataset_id')->constrained('bf_datasets')->cascadeOnDelete();
             $table->string('locale');
             $table->string('title');
             $table->text('excerpt')->nullable();
@@ -24,6 +24,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('cms_dataset_translations');
+        Schema::dropIfExists('bf_dataset_translations');
     }
 };

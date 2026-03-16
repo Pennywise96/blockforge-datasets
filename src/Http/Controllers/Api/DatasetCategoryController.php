@@ -24,7 +24,7 @@ class DatasetCategoryController
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255'],
-            'parent_id' => ['nullable', 'integer', 'exists:cms_dataset_categories,id'],
+            'parent_id' => ['nullable', 'integer', 'exists:bf_dataset_categories,id'],
         ]);
 
         $category = CmsDatasetCategory::query()->create([
@@ -40,7 +40,7 @@ class DatasetCategoryController
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'slug' => ['sometimes', 'string', 'max:255'],
-            'parent_id' => ['nullable', 'integer', 'exists:cms_dataset_categories,id'],
+            'parent_id' => ['nullable', 'integer', 'exists:bf_dataset_categories,id'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
 

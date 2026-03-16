@@ -38,7 +38,7 @@ class DatasetController
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'type_id' => ['required', 'integer', 'exists:cms_dataset_types,id'],
+            'type_id' => ['required', 'integer', 'exists:bf_dataset_types,id'],
             'slug' => ['required', 'string', 'max:255'],
             'date' => ['nullable', 'date'],
             'status' => ['sometimes', 'in:draft,published'],
@@ -105,7 +105,7 @@ class DatasetController
     {
         $request->validate([
             'category_ids' => ['present', 'array'],
-            'category_ids.*' => ['integer', 'exists:cms_dataset_categories,id'],
+            'category_ids.*' => ['integer', 'exists:bf_dataset_categories,id'],
         ]);
 
         $dataset->categories()->sync($request->input('category_ids'));

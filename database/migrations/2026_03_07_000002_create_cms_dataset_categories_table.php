@@ -8,10 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('cms_dataset_categories', function (Blueprint $table) {
+        Schema::create('bf_dataset_categories', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('type_id')->constrained('cms_dataset_types')->cascadeOnDelete();
-            $table->foreignId('parent_id')->nullable()->constrained('cms_dataset_categories')->nullOnDelete();
+            $table->foreignId('type_id')->constrained('bf_dataset_types')->cascadeOnDelete();
+            $table->foreignId('parent_id')->nullable()->constrained('bf_dataset_categories')->nullOnDelete();
             $table->string('name');
             $table->string('slug');
             $table->unsignedInteger('sort_order')->default(0);
@@ -21,6 +21,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('cms_dataset_categories');
+        Schema::dropIfExists('bf_dataset_categories');
     }
 };

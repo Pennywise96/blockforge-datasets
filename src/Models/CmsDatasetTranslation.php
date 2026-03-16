@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CmsDatasetTranslation extends Model
 {
+    protected $table = 'bf_dataset_translations';
+
     protected $fillable = [
         'dataset_id',
         'locale',

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CmsDatasetType extends Model
 {
+    protected $table = 'bf_dataset_types';
+
     protected $fillable = [
         'name',
         'slug',

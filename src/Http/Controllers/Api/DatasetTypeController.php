@@ -19,7 +19,7 @@ class DatasetTypeController
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:255', 'unique:cms_dataset_types,slug'],
+            'slug' => ['required', 'string', 'max:255', 'unique:bf_dataset_types,slug'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -32,7 +32,7 @@ class DatasetTypeController
     {
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'slug' => ['sometimes', 'string', 'max:255', 'unique:cms_dataset_types,slug,'.$datasetType->id],
+            'slug' => ['sometimes', 'string', 'max:255', 'unique:bf_dataset_types,slug,'.$datasetType->id],
             'description' => ['nullable', 'string'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);

@@ -8,9 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('cms_dataset_category_dataset', function (Blueprint $table) {
-            $table->foreignId('dataset_id')->constrained('cms_datasets')->cascadeOnDelete();
-            $table->foreignId('category_id')->constrained('cms_dataset_categories')->cascadeOnDelete();
+        Schema::create('bf_dataset_category_dataset', function (Blueprint $table) {
+            $table->foreignId('dataset_id')->constrained('bf_datasets')->cascadeOnDelete();
+            $table->foreignId('category_id')->constrained('bf_dataset_categories')->cascadeOnDelete();
 
             $table->primary(['dataset_id', 'category_id']);
         });
@@ -18,6 +18,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('cms_dataset_category_dataset');
+        Schema::dropIfExists('bf_dataset_category_dataset');
     }
 };

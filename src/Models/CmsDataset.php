@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CmsDataset extends Model
 {
+    protected $table = 'bf_datasets';
+
     protected $fillable = [
         'type_id',
         'slug',
@@ -39,6 +41,6 @@ class CmsDataset extends Model
 
     public function categories(): BelongsToMany
     {
-        return $this->belongsToMany(CmsDatasetCategory::class, 'cms_dataset_category_dataset', 'dataset_id', 'category_id');
+        return $this->belongsToMany(CmsDatasetCategory::class, 'bf_dataset_category_dataset', 'dataset_id', 'category_id');
     }
 }
