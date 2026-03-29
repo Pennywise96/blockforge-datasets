@@ -69,6 +69,23 @@ test('can create a nested category', function (): void {
         ->assertJsonPath('parent_id', $parent->id);
 });
 
+test('cannot create a category under a parent from another type', function (): void {
+    $type = makeType();
+    $otherType = makeType('news');
+    $foreignParent = CmsDatasetCategory::query()->create([
+        'type_id' => $otherType->id,
+        'name' => 'Foreign',
+        'slug' => 'foreign',
+    ]);
+
+    $this->postJson("/api/cms/datasets/types/{$type->id}/categories", [
+        'name' => 'AI',
+        'slug' => 'ai',
+        'parent_id' => $foreignParent->id,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['parent_id']);
+});
+
 test('can update a category', function (): void {
     $type = makeType();
     $category = CmsDatasetCategory::query()->create([
@@ -104,6 +121,51 @@ test('can move a category under another category', function (): void {
     ])->assertOk()
         ->assertJsonPath('parent_id', $parent->id)
         ->assertJsonPath('sort_order', 1);
+});
+
+test('cannot move a category under a parent from another type', function (): void {
+    $type = makeType();
+    $otherType = makeType('news');
+    $category = CmsDatasetCategory::query()->create([
+        'type_id' => $type->id,
+        'name' => 'AI',
+        'slug' => 'ai',
+    ]);
+    $foreignParent = CmsDatasetCategory::query()->create([
+        'type_id' => $otherType->id,
+        'name' => 'Foreign',
+        'slug' => 'foreign',
+    ]);
+
+    $this->putJson("/api/cms/datasets/categories/{$category->id}", [
+        'parent_id' => $foreignParent->id,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['parent_id']);
+});
+
+test('cannot move a category under itself or one of its descendants', function (): void {
+    $type = makeType();
+    $parent = CmsDatasetCategory::query()->create([
+        'type_id' => $type->id,
+        'name' => 'Tech',
+        'slug' => 'tech',
+    ]);
+    $child = CmsDatasetCategory::query()->create([
+        'type_id' => $type->id,
+        'parent_id' => $parent->id,
+        'name' => 'AI',
+        'slug' => 'ai',
+    ]);
+
+    $this->putJson("/api/cms/datasets/categories/{$parent->id}", [
+        'parent_id' => $parent->id,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['parent_id']);
+
+    $this->putJson("/api/cms/datasets/categories/{$parent->id}", [
+        'parent_id' => $child->id,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['parent_id']);
 });
 
 test('can delete a category', function (): void {

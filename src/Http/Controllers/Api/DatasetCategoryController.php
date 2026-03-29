@@ -6,6 +6,7 @@ use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class DatasetCategoryController
 {
@@ -27,6 +28,11 @@ class DatasetCategoryController
             'parent_id' => ['nullable', 'integer', 'exists:bf_dataset_categories,id'],
         ]);
 
+        $this->assertValidParentCategory(
+            typeId: $datasetType->id,
+            parentId: $validated['parent_id'] ?? null,
+        );
+
         $category = CmsDatasetCategory::query()->create([
             ...$validated,
             'type_id' => $datasetType->id,
@@ -44,6 +50,14 @@ class DatasetCategoryController
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
 
+        if (array_key_exists('parent_id', $validated)) {
+            $this->assertValidParentCategory(
+                typeId: $datasetCategory->type_id,
+                parentId: $validated['parent_id'],
+                categoryId: $datasetCategory->id,
+            );
+        }
+
         $datasetCategory->update($validated);
 
         return response()->json($datasetCategory);
@@ -54,5 +68,51 @@ class DatasetCategoryController
         $datasetCategory->delete();
 
         return response()->json(null, 204);
+    }
+
+    private function assertValidParentCategory(int $typeId, ?int $parentId, ?int $categoryId = null): void
+    {
+        if ($parentId === null) {
+            return;
+        }
+
+        if ($categoryId !== null && $parentId === $categoryId) {
+            throw ValidationException::withMessages([
+                'parent_id' => ['A category cannot be its own parent.'],
+            ]);
+        }
+
+        $parentCategory = CmsDatasetCategory::query()->find($parentId);
+
+        if ($parentCategory === null || $parentCategory->type_id !== $typeId) {
+            throw ValidationException::withMessages([
+                'parent_id' => ['The selected parent category must belong to the same dataset type.'],
+            ]);
+        }
+
+        if ($categoryId !== null && $this->isDescendantCategory($categoryId, $parentCategory)) {
+            throw ValidationException::withMessages([
+                'parent_id' => ['A category cannot be moved beneath one of its descendants.'],
+            ]);
+        }
+    }
+
+    private function isDescendantCategory(int $categoryId, CmsDatasetCategory $candidateParent): bool
+    {
+        $current = $candidateParent;
+
+        while ($current->parent_id !== null) {
+            if ($current->parent_id === $categoryId) {
+                return true;
+            }
+
+            $current = CmsDatasetCategory::query()->find($current->parent_id);
+
+            if ($current === null) {
+                return false;
+            }
+        }
+
+        return false;
     }
 }

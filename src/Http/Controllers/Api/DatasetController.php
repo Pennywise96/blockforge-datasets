@@ -4,9 +4,11 @@ namespace Blockforge\Datasets\Http\Controllers\Api;
 
 use Blockforge\Cms\Models\CmsMediaItem;
 use Blockforge\Datasets\Models\CmsDataset;
+use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetTranslation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class DatasetController
 {
@@ -103,12 +105,24 @@ class DatasetController
 
     public function syncCategories(Request $request, CmsDataset $dataset): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'category_ids' => ['present', 'array'],
             'category_ids.*' => ['integer', 'exists:bf_dataset_categories,id'],
         ]);
 
-        $dataset->categories()->sync($request->input('category_ids'));
+        $categoryIds = $validated['category_ids'];
+        $matchingTypeCategoryCount = CmsDatasetCategory::query()
+            ->whereIn('id', $categoryIds)
+            ->where('type_id', $dataset->type_id)
+            ->count();
+
+        if ($matchingTypeCategoryCount !== count($categoryIds)) {
+            throw ValidationException::withMessages([
+                'category_ids' => ['All categories must belong to the same dataset type as the entry.'],
+            ]);
+        }
+
+        $dataset->categories()->sync($categoryIds);
         $dataset->load('categories');
 
         return response()->json($dataset->categories);

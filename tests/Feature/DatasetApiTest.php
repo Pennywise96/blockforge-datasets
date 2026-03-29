@@ -260,6 +260,22 @@ test('can sync categories for a dataset entry', function (): void {
     expect($dataset->fresh()->categories)->toHaveCount(2);
 });
 
+test('cannot sync categories from another dataset type', function (): void {
+    $type = makeDatasetType();
+    $otherType = makeDatasetType('news');
+    $dataset = makeDataset($type);
+    $foreignCategory = CmsDatasetCategory::query()->create([
+        'type_id' => $otherType->id,
+        'name' => 'News',
+        'slug' => 'news',
+    ]);
+
+    $this->putJson("/api/cms/datasets/{$dataset->id}/categories", [
+        'category_ids' => [$foreignCategory->id],
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['category_ids']);
+});
+
 test('can remove all categories via sync', function (): void {
     $type = makeDatasetType();
     $dataset = makeDataset($type);
