@@ -2,7 +2,6 @@
 
 namespace Blockforge\Datasets\ViewHelpers;
 
-use Blockforge\Cms\Models\CmsPage;
 use Blockforge\Cms\ViewHelpers\ViewHelper;
 use Blockforge\Datasets\Elements\DatasetObject;
 use Blockforge\Datasets\Models\CmsDataset;
@@ -18,13 +17,15 @@ class DatasetItemsViewHelper extends ViewHelper
         string $iteration = 'iteration',
         ?int $limit = null,
         ?string $category = null,
+        ?string $search = null,
+        ?int $page = null,
         string $orderBy = 'date',
         string $direction = 'desc',
         string $status = 'published',
         ?string $detailBase = null,
     ): string {
         $locale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
-        $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $orderBy, $direction, $status);
+        $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $search, $page, $orderBy, $direction, $status);
 
         $output = '';
         $total = count($items);
@@ -51,21 +52,26 @@ class DatasetItemsViewHelper extends ViewHelper
         return $output;
     }
 
-    private function resolveLegacyDetailBase(): ?string
+    /** @return array{category:?string,page:?int,search:?string} */
+    private function resolveContextFilters(): array
     {
-        if (! app()->bound(CmsPage::class)) {
-            return null;
-        }
+        $filters = app()->bound('cms.dataset_filters') && is_array(app('cms.dataset_filters'))
+            ? app('cms.dataset_filters')
+            : [];
 
-        $page = app(CmsPage::class);
+        $search = request()->query('q');
 
-        if ($page->detail_page_id === null) {
-            return null;
-        }
-
-        $slug = $page->slug;
-
-        return $slug === '/' ? '' : '/'.ltrim($slug, '/');
+        return [
+            'category' => is_string($filters['category'] ?? null) && $filters['category'] !== ''
+                ? $filters['category']
+                : null,
+            'page' => is_numeric($filters['page'] ?? null) && (int) $filters['page'] > 0
+                ? (int) $filters['page']
+                : null,
+            'search' => is_string($search) && trim($search) !== ''
+                ? trim($search)
+                : null,
+        ];
     }
 
     /** @return DatasetObject[] */
@@ -75,6 +81,8 @@ class DatasetItemsViewHelper extends ViewHelper
         ?string $type,
         ?int $limit,
         ?string $category,
+        ?string $search,
+        ?int $page,
         string $orderBy,
         string $direction,
         string $status,
@@ -85,8 +93,12 @@ class DatasetItemsViewHelper extends ViewHelper
             return [];
         }
 
-        $detailBase ??= app(DatasetDetailPageService::class)->detailBaseForType($typeModel)
-            ?? $this->resolveLegacyDetailBase();
+        $filters = $this->resolveContextFilters();
+        $category ??= $filters['category'];
+        $search ??= $filters['search'];
+        $page ??= $filters['page'];
+
+        $detailBase ??= app(DatasetDetailPageService::class)->detailBaseForType($typeModel);
 
         $query = CmsDataset::query()
             ->where('type_id', $typeModel->id)
@@ -97,11 +109,27 @@ class DatasetItemsViewHelper extends ViewHelper
             $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
         }
 
+        if ($search !== null) {
+            $searchTerm = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+
+            $query->whereHas('translations', function (Builder $translationQuery) use ($searchTerm): void {
+                $translationQuery->where(function (Builder $textQuery) use ($searchTerm): void {
+                    $textQuery->where('title', 'like', $searchTerm)
+                        ->orWhere('excerpt', 'like', $searchTerm)
+                        ->orWhere('content', 'like', $searchTerm);
+                });
+            });
+        }
+
         $allowedOrderColumns = ['date', 'sort_order', 'created_at'];
         $orderColumn = in_array($orderBy, $allowedOrderColumns, true) ? $orderBy : 'date';
         $direction = in_array(strtolower($direction), ['asc', 'desc'], true) ? $direction : 'desc';
 
         $query->orderBy($orderColumn, $direction);
+
+        if ($limit !== null && $page !== null && $page > 1) {
+            $query->offset(($page - 1) * $limit);
+        }
 
         if ($limit !== null) {
             $query->limit($limit);

@@ -20,6 +20,24 @@ class CanonicalDatasetDetailPageResolver implements PageRouteFallbackResolver
         string $translationMode,
         bool $guest,
     ): ?CmsPage {
+        $archiveRoute = $this->parseArchiveRoute($slug);
+
+        if ($archiveRoute !== null) {
+            $archivePage = $this->resolveArchivePage($site, $archiveRoute['archive_slug'], $activeLocaleId, $defaultLocaleId, $translationMode, $guest);
+
+            if ($archivePage !== null) {
+                $mapping = app(DatasetDetailPageService::class)->mappingForArchivePage($archivePage, $this->accessibleStatuses());
+
+                if ($mapping !== null && $mapping->datasetType !== null) {
+                    app()->instance('cms.dataset_filters', $archiveRoute['filters']);
+                    app()->instance('cms.dataset_type', $mapping->datasetType);
+                    app()->instance('cms.dataset_list_page', $archivePage);
+
+                    return $archivePage;
+                }
+            }
+        }
+
         if (! str_contains($slug, '/')) {
             return null;
         }
@@ -60,6 +78,76 @@ class CanonicalDatasetDetailPageResolver implements PageRouteFallbackResolver
         app()->instance('cms.dataset_detail_page', $mapping->page);
 
         return $mapping->page;
+    }
+
+    /** @return array{archive_slug:string,filters:array{category?:string,page?:int}}|null */
+    private function parseArchiveRoute(string $slug): ?array
+    {
+        $segments = array_values(array_filter(explode('/', trim($slug, '/'))));
+
+        if ($segments === []) {
+            return null;
+        }
+
+        $segmentCount = count($segments);
+
+        if (
+            $segmentCount >= 5
+            && $segments[$segmentCount - 4] === 'category'
+            && $segments[$segmentCount - 2] === 'page'
+            && ctype_digit($segments[$segmentCount - 1])
+        ) {
+            $archiveSlug = implode('/', array_slice($segments, 0, $segmentCount - 4));
+            $category = $segments[$segmentCount - 3];
+            $page = (int) $segments[$segmentCount - 1];
+
+            return $archiveSlug !== '' && $category !== '' && $page > 0
+                ? [
+                    'archive_slug' => $archiveSlug,
+                    'filters' => [
+                        'category' => $category,
+                        'page' => $page,
+                    ],
+                ]
+                : null;
+        }
+
+        if (
+            $segmentCount >= 3
+            && $segments[$segmentCount - 2] === 'category'
+        ) {
+            $archiveSlug = implode('/', array_slice($segments, 0, $segmentCount - 2));
+            $category = $segments[$segmentCount - 1];
+
+            return $archiveSlug !== '' && $category !== ''
+                ? [
+                    'archive_slug' => $archiveSlug,
+                    'filters' => [
+                        'category' => $category,
+                    ],
+                ]
+                : null;
+        }
+
+        if (
+            $segmentCount >= 3
+            && $segments[$segmentCount - 2] === 'page'
+            && ctype_digit($segments[$segmentCount - 1])
+        ) {
+            $archiveSlug = implode('/', array_slice($segments, 0, $segmentCount - 2));
+            $page = (int) $segments[$segmentCount - 1];
+
+            return $archiveSlug !== '' && $page > 0
+                ? [
+                    'archive_slug' => $archiveSlug,
+                    'filters' => [
+                        'page' => $page,
+                    ],
+                ]
+                : null;
+        }
+
+        return null;
     }
 
     private function resolveArchivePage(

@@ -128,6 +128,64 @@ test('canonical dataset detail routing resolves the configured detail page', fun
         ->and(app('cms.dataset_detail_page')->id)->toBe($detailPage->id);
 });
 
+test('canonical dataset archive category route resolves the archive page and binds filters', function (): void {
+    $site = makeCanonicalRoutingSite();
+    $locale = makeCanonicalRoutingLocale($site);
+    $siteLocales = new Collection([$locale]);
+    $type = makeCanonicalRoutingType('blog');
+
+    $archivePage = makeCanonicalRoutingPage($site, ['slug' => 'blog']);
+    $detailPage = makeCanonicalRoutingPage($site, [
+        'slug' => 'blog/detail',
+        'parent_id' => $archivePage->id,
+        'nav_hidden' => true,
+    ]);
+
+    CmsDatasetDetailPage::query()->create([
+        'site_id' => $site->id,
+        'page_id' => $detailPage->id,
+        'dataset_type_id' => $type->id,
+    ]);
+
+    $status = invokeCanonicalRouting('/blog/category/news', $site, $locale, $siteLocales);
+
+    expect($status)->toBe(200)
+        ->and(app(CmsPage::class)->id)->toBe($archivePage->id)
+        ->and(app('cms.dataset_type')->id)->toBe($type->id)
+        ->and(app('cms.dataset_filters'))->toBe([
+            'category' => 'news',
+        ]);
+});
+
+test('canonical dataset archive pagination route resolves the archive page and binds filters', function (): void {
+    $site = makeCanonicalRoutingSite();
+    $locale = makeCanonicalRoutingLocale($site);
+    $siteLocales = new Collection([$locale]);
+    $type = makeCanonicalRoutingType('blog');
+
+    $archivePage = makeCanonicalRoutingPage($site, ['slug' => 'blog']);
+    $detailPage = makeCanonicalRoutingPage($site, [
+        'slug' => 'blog/detail',
+        'parent_id' => $archivePage->id,
+        'nav_hidden' => true,
+    ]);
+
+    CmsDatasetDetailPage::query()->create([
+        'site_id' => $site->id,
+        'page_id' => $detailPage->id,
+        'dataset_type_id' => $type->id,
+    ]);
+
+    $status = invokeCanonicalRouting('/blog/category/news/page/2', $site, $locale, $siteLocales);
+
+    expect($status)->toBe(200)
+        ->and(app(CmsPage::class)->id)->toBe($archivePage->id)
+        ->and(app('cms.dataset_filters'))->toBe([
+            'category' => 'news',
+            'page' => 2,
+        ]);
+});
+
 test('exact page matches still win over canonical dataset detail routing', function (): void {
     $site = makeCanonicalRoutingSite();
     $locale = makeCanonicalRoutingLocale($site);
