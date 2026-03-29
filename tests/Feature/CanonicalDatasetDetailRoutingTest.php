@@ -128,7 +128,7 @@ test('canonical dataset detail routing resolves the configured detail page', fun
         ->and(app('cms.dataset_detail_page')->id)->toBe($detailPage->id);
 });
 
-test('explicit detail_page_id routing still wins over canonical dataset detail routing', function (): void {
+test('exact page matches still win over canonical dataset detail routing', function (): void {
     $site = makeCanonicalRoutingSite();
     $locale = makeCanonicalRoutingLocale($site);
     $siteLocales = new Collection([$locale]);
@@ -136,8 +136,7 @@ test('explicit detail_page_id routing still wins over canonical dataset detail r
     makeCanonicalRoutingEntry($type, 'hello-world');
 
     $archivePage = makeCanonicalRoutingPage($site, ['slug' => 'blog']);
-    $legacyDetailPage = makeCanonicalRoutingPage($site, ['slug' => 'legacy-blog-detail']);
-    $archivePage->update(['detail_page_id' => $legacyDetailPage->id]);
+    $exactMatchPage = makeCanonicalRoutingPage($site, ['slug' => 'blog/hello-world']);
 
     $canonicalDetailPage = makeCanonicalRoutingPage($site, [
         'slug' => 'blog/detail',
@@ -154,7 +153,7 @@ test('explicit detail_page_id routing still wins over canonical dataset detail r
     $status = invokeCanonicalRouting('/blog/hello-world', $site, $locale, $siteLocales);
 
     expect($status)->toBe(200)
-        ->and(app(CmsPage::class)->id)->toBe($legacyDetailPage->id)
+        ->and(app(CmsPage::class)->id)->toBe($exactMatchPage->id)
         ->and(app()->bound('cms.dataset_type'))->toBeFalse();
 });
 

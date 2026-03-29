@@ -129,17 +129,13 @@ test('generates canonical detail URLs for dataset entries', function (): void {
         ->and($captured[0]['post']->url())->toBe('/blog/hello-world');
 });
 
-test('falls back to legacy current-page detail_page_id links when no canonical mapping exists', function (): void {
+test('returns no detail url when no canonical mapping exists', function (): void {
     $site = makeItemsTestSite();
     $locale = makeItemsLocale($site);
     $type = makeItemsType('blog');
     makeItemsEntry($type, 'legacy-post', 'Legacy Post');
 
-    $detailPage = makeItemsPage($site, ['slug' => 'blog/detail']);
-    $listPage = makeItemsPage($site, [
-        'slug' => 'blog',
-        'detail_page_id' => $detailPage->id,
-    ]);
+    $listPage = makeItemsPage($site, ['slug' => 'blog']);
 
     bindItemsRuntimeContext($site, $locale);
     app()->instance(CmsPage::class, $listPage);
@@ -147,5 +143,5 @@ test('falls back to legacy current-page detail_page_id links when no canonical m
     $captured = executeItemsViewHelper(['type' => 'blog', 'as' => 'post']);
 
     expect($captured)->toHaveCount(1)
-        ->and($captured[0]['post']->url())->toBe('/blog/legacy-post');
+        ->and($captured[0]['post']->url())->toBeNull();
 });
