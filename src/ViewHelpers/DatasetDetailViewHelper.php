@@ -5,11 +5,11 @@ namespace Blockforge\Datasets\ViewHelpers;
 use Blockforge\Cms\ViewHelpers\ViewHelper;
 use Blockforge\Datasets\Elements\DatasetObject;
 use Blockforge\Datasets\Models\CmsDataset;
-use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Support\DatasetTypeResolver;
 
 class DatasetDetailViewHelper extends ViewHelper
 {
-    public function render(string $type, string $as = 'item', ?string $slug = null): string
+    public function render(?string $type = null, string $as = 'item', ?string $slug = null): string
     {
         $locale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
         $item = $this->fetchItem($locale, $type, $slug);
@@ -21,7 +21,7 @@ class DatasetDetailViewHelper extends ViewHelper
         return $this->renderChildren([$as => $item, 'item' => $item]);
     }
 
-    private function fetchItem(string $locale, string $type, ?string $slug): ?DatasetObject
+    private function fetchItem(string $locale, ?string $type, ?string $slug): ?DatasetObject
     {
         $entrySlug = $slug ?? (app()->bound('cms.dataset_slug') ? app('cms.dataset_slug') : null);
 
@@ -29,7 +29,7 @@ class DatasetDetailViewHelper extends ViewHelper
             return null;
         }
 
-        $typeModel = CmsDatasetType::query()->where('slug', $type)->first();
+        $typeModel = app(DatasetTypeResolver::class)->resolve($type);
 
         if ($typeModel === null) {
             return null;

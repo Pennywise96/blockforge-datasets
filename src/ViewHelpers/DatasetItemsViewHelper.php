@@ -6,13 +6,14 @@ use Blockforge\Cms\Models\CmsPage;
 use Blockforge\Cms\ViewHelpers\ViewHelper;
 use Blockforge\Datasets\Elements\DatasetObject;
 use Blockforge\Datasets\Models\CmsDataset;
-use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Support\DatasetDetailPageService;
+use Blockforge\Datasets\Support\DatasetTypeResolver;
 use Illuminate\Database\Eloquent\Builder;
 
 class DatasetItemsViewHelper extends ViewHelper
 {
     public function render(
-        string $type,
+        ?string $type = null,
         string $as = 'item',
         string $iteration = 'iteration',
         ?int $limit = null,
@@ -23,7 +24,6 @@ class DatasetItemsViewHelper extends ViewHelper
         ?string $detailBase = null,
     ): string {
         $locale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
-        $detailBase = $detailBase ?? $this->resolveDetailBase();
         $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $orderBy, $direction, $status);
 
         $output = '';
@@ -51,7 +51,7 @@ class DatasetItemsViewHelper extends ViewHelper
         return $output;
     }
 
-    private function resolveDetailBase(): ?string
+    private function resolveLegacyDetailBase(): ?string
     {
         if (! app()->bound(CmsPage::class)) {
             return null;
@@ -72,18 +72,21 @@ class DatasetItemsViewHelper extends ViewHelper
     private function fetchItems(
         string $locale,
         ?string $detailBase,
-        string $type,
+        ?string $type,
         ?int $limit,
         ?string $category,
         string $orderBy,
         string $direction,
         string $status,
     ): array {
-        $typeModel = CmsDatasetType::query()->where('slug', $type)->first();
+        $typeModel = app(DatasetTypeResolver::class)->resolve($type);
 
         if (! $typeModel) {
             return [];
         }
+
+        $detailBase ??= app(DatasetDetailPageService::class)->detailBaseForType($typeModel)
+            ?? $this->resolveLegacyDetailBase();
 
         $query = CmsDataset::query()
             ->where('type_id', $typeModel->id)

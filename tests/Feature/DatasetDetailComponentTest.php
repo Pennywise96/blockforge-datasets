@@ -105,6 +105,21 @@ test('fetches the correct entry when slug is bound via cms.dataset_slug', functi
         ->and($captured['post']->title)->toBe('Bound Post');
 });
 
+test('resolves the detail entry from bound cms.dataset_type context', function (): void {
+    $type = makeDetailType('blog');
+    makeDetailEntry($type, 'bound-post', 'Bound Post');
+
+    app()->instance('cms.locale', 'en');
+    app()->instance('cms.dataset_slug', 'bound-post');
+    app()->instance('cms.dataset_type', $type);
+
+    $captured = executeDetailViewHelper(['as' => 'post']);
+
+    expect($captured['post'])
+        ->toBeInstanceOf(DatasetObject::class)
+        ->and($captured['post']->title)->toBe('Bound Post');
+});
+
 test('explicit slug prop takes priority over cms.dataset_slug', function (): void {
     $type = makeDetailType('blog');
     makeDetailEntry($type, 'explicit-post', 'Explicit Post');
@@ -116,6 +131,22 @@ test('explicit slug prop takes priority over cms.dataset_slug', function (): voi
     $captured = executeDetailViewHelper(['type' => 'blog', 'slug' => 'explicit-post', 'as' => 'post']);
 
     expect($captured['post']->title)->toBe('Explicit Post');
+});
+
+test('explicit type prop takes priority over bound cms.dataset_type', function (): void {
+    $blogType = makeDetailType('blog');
+    $newsType = makeDetailType('news');
+    makeDetailEntry($blogType, 'my-post', 'Blog Post');
+    makeDetailEntry($newsType, 'my-post', 'News Post');
+
+    app()->instance('cms.locale', 'en');
+    app()->instance('cms.dataset_slug', 'my-post');
+    app()->instance('cms.dataset_type', $newsType);
+
+    $captured = executeDetailViewHelper(['type' => 'blog', 'as' => 'post']);
+
+    expect($captured['post']->title)->toBe('Blog Post')
+        ->and($captured['post']->type)->toBe('blog');
 });
 
 test('aborts 404 when slug is set but no matching published entry exists', function (): void {

@@ -2,6 +2,7 @@
 
 use Blockforge\Datasets\Http\Controllers\Api\DatasetCategoryController;
 use Blockforge\Datasets\Http\Controllers\Api\DatasetController;
+use Blockforge\Datasets\Http\Controllers\Api\DatasetPageDetailSettingsController;
 use Blockforge\Datasets\Http\Controllers\Api\DatasetTypeController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,8 @@ Route::prefix('cms')->middleware(['web', 'cms.debug', 'cms.site', 'auth:web', 't
 
     // Datasets (entries)
     Route::get('datasets', [DatasetController::class, 'index']);
+    Route::get('datasets/pages/{page}/detail-settings', [DatasetPageDetailSettingsController::class, 'show']);
+    Route::put('datasets/pages/{page}/detail-settings', [DatasetPageDetailSettingsController::class, 'update']);
     Route::post('datasets', [DatasetController::class, 'store']);
     Route::get('datasets/{dataset}', [DatasetController::class, 'show']);
     Route::put('datasets/{dataset}', [DatasetController::class, 'update']);

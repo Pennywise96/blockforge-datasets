@@ -2,8 +2,10 @@
 
 namespace Blockforge\Datasets\Providers;
 
+use Blockforge\Cms\Routing\PageRouteFallbackRegistry;
 use Blockforge\Cms\Support\EditorPackageRegistry;
 use Blockforge\Cms\ViewHelpers\ViewHelperRegistry;
+use Blockforge\Datasets\Routing\CanonicalDatasetDetailPageResolver;
 use Blockforge\Datasets\ViewHelpers\DatasetDetailViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetItemsViewHelper;
 use Forte\Facades\Forte;
@@ -55,5 +57,10 @@ class DatasetServiceProvider extends ServiceProvider
             'package' => 'blockforge/datasets',
             'connected' => true,
         ]);
+
+        if (class_exists(PageRouteFallbackRegistry::class)) {
+            $this->app->make(PageRouteFallbackRegistry::class)
+                ->register(CanonicalDatasetDetailPageResolver::class);
+        }
     }
 }
