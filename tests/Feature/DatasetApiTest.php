@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Blockforge\Cms\Http\Middleware\ResolveCmsSite;
 use Blockforge\Cms\Models\CmsMediaItem;
 use Blockforge\Cms\Models\CmsSite;
 use Blockforge\Cms\Models\CmsSiteLocale;
@@ -14,6 +15,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function (): void {
+    $this->withoutMiddleware(ResolveCmsSite::class);
     $this->actingAs(User::factory()->create());
 });
 

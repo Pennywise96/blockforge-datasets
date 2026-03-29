@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Blockforge\Cms\Http\Middleware\ResolveCmsSite;
 use Blockforge\Datasets\Models\CmsDatasetType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -8,6 +9,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function (): void {
+    $this->withoutMiddleware(ResolveCmsSite::class);
     $this->actingAs(User::factory()->create());
 });
 

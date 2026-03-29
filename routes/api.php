@@ -5,7 +5,7 @@ use Blockforge\Datasets\Http\Controllers\Api\DatasetController;
 use Blockforge\Datasets\Http\Controllers\Api\DatasetTypeController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('cms')->middleware('auth')->group(function () {
+Route::prefix('cms')->middleware(['web', 'cms.debug', 'cms.site', 'auth:web', 'throttle:300,1'])->group(function () {
     // Dataset types
     Route::get('datasets/types', [DatasetTypeController::class, 'index']);
     Route::post('datasets/types', [DatasetTypeController::class, 'store']);
