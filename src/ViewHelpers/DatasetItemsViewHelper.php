@@ -18,14 +18,14 @@ class DatasetItemsViewHelper extends ViewHelper
         ?int $limit = null,
         ?string $category = null,
         ?string $search = null,
-        ?int $page = null,
+        ?int $pageNumber = null,
         string $orderBy = 'date',
         string $direction = 'desc',
         string $status = 'published',
         ?string $detailBase = null,
     ): string {
         $locale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
-        $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $search, $page, $orderBy, $direction, $status);
+        $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $search, $pageNumber, $orderBy, $direction, $status);
 
         $output = '';
         $total = count($items);
@@ -82,7 +82,7 @@ class DatasetItemsViewHelper extends ViewHelper
         ?int $limit,
         ?string $category,
         ?string $search,
-        ?int $page,
+        ?int $pageNumber,
         string $orderBy,
         string $direction,
         string $status,
@@ -96,7 +96,7 @@ class DatasetItemsViewHelper extends ViewHelper
         $filters = $this->resolveContextFilters();
         $category ??= $filters['category'];
         $search ??= $filters['search'];
-        $page ??= $filters['page'];
+        $pageNumber ??= $filters['page'];
 
         $detailBase ??= app(DatasetDetailPageService::class)->detailBaseForType($typeModel);
 
@@ -127,8 +127,8 @@ class DatasetItemsViewHelper extends ViewHelper
 
         $query->orderBy($orderColumn, $direction);
 
-        if ($limit !== null && $page !== null && $page > 1) {
-            $query->offset(($page - 1) * $limit);
+        if ($limit !== null && $pageNumber !== null && $pageNumber > 1) {
+            $query->offset(($pageNumber - 1) * $limit);
         }
 
         if ($limit !== null) {

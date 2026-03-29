@@ -4,6 +4,7 @@ use Blockforge\Cms\Config\Page;
 use Blockforge\Cms\Models\CmsPage;
 use Blockforge\Cms\Models\CmsSite;
 use Blockforge\Cms\Models\CmsSiteLocale;
+use Blockforge\Cms\Pages\PageObject;
 use Blockforge\Datasets\Elements\DatasetObject;
 use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Models\CmsDatasetCategory;
@@ -214,4 +215,22 @@ test('applies search filters from the request query string', function (): void {
 
     expect($captured)->toHaveCount(1)
         ->and($captured[0]['post']->slug)->toBe('laravel-post');
+});
+
+test('does not collide with the page object from template scope', function (): void {
+    $site = makeItemsTestSite();
+    $locale = makeItemsLocale($site);
+    $type = makeItemsType('blog');
+    makeItemsEntry($type, 'hello-world', 'Hello World');
+
+    bindItemsRuntimeContext($site, $locale);
+
+    $captured = executeItemsViewHelper([
+        'type' => 'blog',
+        'as' => 'post',
+        'page' => new PageObject([], ['slug' => 'blog']),
+    ]);
+
+    expect($captured)->toHaveCount(1)
+        ->and($captured[0]['post']->slug)->toBe('hello-world');
 });
