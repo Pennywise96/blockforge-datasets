@@ -65,7 +65,11 @@ class DatasetServiceProvider extends ServiceProvider
             'package' => 'blockforge/datasets',
             'connected' => true,
         ]);
-        $registry->registerBuild('datasets', 'vendor/blockforge/datasets');
+        $registry->registerBuild(
+            'datasets',
+            'vendor/blockforge/datasets',
+            sourceDistPath: dirname(__DIR__, 2).'/dist',
+        );
 
         if (class_exists(PageRouteFallbackRegistry::class)) {
             $this->app->make(PageRouteFallbackRegistry::class)
