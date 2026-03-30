@@ -1,4 +1,13 @@
 {
+  "resources/css/editor.css": {
+    "file": "assets/editorCss-CelvlyBQ.css",
+    "src": "resources/css/editor.css",
+    "isEntry": true,
+    "name": "editorCss",
+    "names": [
+      "editorCss.css"
+    ]
+  },
   "resources/js/editor.js": {
     "file": "assets/editor-DR3CRLBS.js",
     "name": "editor",
