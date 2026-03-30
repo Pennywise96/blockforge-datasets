@@ -51,8 +51,8 @@ function closeEntryPanel() {
     datasetsStore.closeSelectedEntry()
 }
 
-onMounted(() => {
-    datasetsStore.initialize()
+onMounted(async () => {
+    await datasetsStore.initialize()
 })
 </script>
 
@@ -132,9 +132,11 @@ onMounted(() => {
                         :has-selected-type="Boolean(datasetsStore.selectedType)"
                         :entries="datasetsStore.entries"
                         :is-loading="datasetsStore.isLoadingEntries"
+                        :error="datasetsStore.entriesError"
                         :locale="datasetsStore.locale"
                         :selected-entry-id="datasetsStore.selectedEntryId"
                         :format-date="datasetsStore.formatDate"
+                        @retry="datasetsStore.loadEntries()"
                         @select="openEntry"
                         @delete="deleteEntry"
                         @remove-category="(entry, category) => datasetsStore.removeEntryCategory(entry.id, category.id)"

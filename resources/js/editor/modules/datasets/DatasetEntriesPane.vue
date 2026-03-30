@@ -1,5 +1,5 @@
 <script setup>
-import { BfButton, BfIcon, ModuleCollectionItem, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
+import { BfButton, BfEmptyState, BfIcon, ModuleCollectionItem, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
 import {
     clearDatasetEntryDragData,
     startDatasetEntryDragPreview,
@@ -19,6 +19,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    error: {
+        type: String,
+        default: '',
+    },
     locale: {
         type: String,
         default: 'en',
@@ -33,7 +37,7 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(['select', 'delete', 'remove-category'])
+const emit = defineEmits(['retry', 'select', 'delete', 'remove-category'])
 
 function entryTitle(entry) {
     return entry.translations?.[props.locale]?.title ?? entry.slug
@@ -80,6 +84,21 @@ function handleDragEnd() {
 
             <div v-else-if="isLoading" class="flex items-center justify-center py-8 text-xs text-[var(--bf-ui-muted)]">
                 Loading…
+            </div>
+
+            <div v-else-if="error" class="px-4 py-6">
+                <BfEmptyState
+                    compact
+                    icon="warning"
+                    title="Could not load entries"
+                    :description="error"
+                >
+                    <div class="pt-2">
+                        <BfButton variant="secondary" size="sm" @click="emit('retry')">
+                            Retry
+                        </BfButton>
+                    </div>
+                </BfEmptyState>
             </div>
 
             <div v-else-if="entries.length === 0" class="flex items-center justify-center py-8 text-xs text-[var(--bf-ui-muted)]">

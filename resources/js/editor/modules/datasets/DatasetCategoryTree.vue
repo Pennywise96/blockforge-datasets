@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { BfButton, BfIcon, ModuleBody, ModuleHeader, ModuleScrollArea, ModuleStackLayout, TreeItemRow, TreeView } from '@blockforge-cms/editor-sdk'
+import { BfButton, BfEmptyState, BfIcon, ModuleBody, ModuleHeader, ModuleScrollArea, ModuleStackLayout, TreeItemRow, TreeView } from '@blockforge-cms/editor-sdk'
 import { useDatasetCategories } from '../../composables/datasets/useDatasetCategories'
 import { useDatasetsStore } from '../../stores/datasets'
 import DatasetCategoryFormPane from './DatasetCategoryFormPane.vue'
@@ -86,53 +86,91 @@ function closeCategoryPanel() {
             <Transition name="drill-back">
                 <div v-if="!isCategoryPanelOpen" class="absolute inset-0 flex flex-col">
                     <ModuleScrollArea class="py-1">
-                        <TreeItemRow
-                            :selected="datasetsStore.selectedCategorySlug === null"
-                            interactive
-                            @click="datasetsStore.selectCategory(null)"
+                        <div
+                            v-if="datasetsStore.isLoadingCategories"
+                            class="px-3 py-3 text-xs text-[var(--bf-ui-muted)]"
                         >
-                            <template #default>
-                                <BfIcon name="squares-2x2" class="h-3.5 w-3.5 shrink-0 text-[var(--bf-ui-muted)]" />
-                                <span
-                                    class="text-xs"
-                                    :class="datasetsStore.selectedCategorySlug === null ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-muted)]'"
-                                >
-                                    All entries
-                                </span>
-                            </template>
-                        </TreeItemRow>
-
-                        <TreeView :items="categoryTree" :definition="treeDefinition">
-                            <template #leading="{ item }">
-                                <BfIcon
-                                    name="folder"
-                                    class="h-3.5 w-3.5 shrink-0 transition-colors duration-75"
-                                    :class="datasetsStore.selectedCategorySlug === item.slug ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-muted)]'"
-                                />
-                            </template>
-
-                            <template #label="{ item }">
-                                <span
-                                    class="flex-1 truncate text-xs leading-none"
-                                    :class="entryDropTargetId === item.id || datasetsStore.selectedCategorySlug === item.slug ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-text)]'"
-                                >
-                                    {{ item.name }}
-                                </span>
-                            </template>
-
-                            <template #meta="{ item }">
-                                <span
-                                    v-if="entryDropTargetId === item.id"
-                                    class="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--bf-ui-accent)]"
-                                >
-                                    Assign
-                                </span>
-                            </template>
-                        </TreeView>
-
-                        <div v-if="categoryTree.length === 0" class="px-2 py-1 text-xs text-[var(--bf-ui-muted)]">
-                            No categories yet
+                            Loading categories…
                         </div>
+
+                        <div
+                            v-else-if="datasetsStore.categoriesError"
+                            class="px-3 py-3"
+                        >
+                            <BfEmptyState
+                                compact
+                                icon="warning"
+                                title="Could not load categories"
+                                :description="datasetsStore.categoriesError"
+                            >
+                                <div class="pt-2">
+                                    <BfButton variant="secondary" size="sm" @click="datasetsStore.loadCategories()">
+                                        Retry
+                                    </BfButton>
+                                </div>
+                            </BfEmptyState>
+                        </div>
+
+                        <template v-else>
+                            <TreeItemRow
+                                :selected="datasetsStore.selectedCategorySlug === null"
+                                interactive
+                                @click="datasetsStore.selectCategory(null)"
+                            >
+                                <template #default>
+                                    <BfIcon name="squares-2x2" class="h-3.5 w-3.5 shrink-0 text-[var(--bf-ui-muted)]" />
+                                    <span
+                                        class="text-xs"
+                                        :class="datasetsStore.selectedCategorySlug === null ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-muted)]'"
+                                    >
+                                        All entries
+                                    </span>
+                                </template>
+                            </TreeItemRow>
+
+                            <TreeView :items="categoryTree" :definition="treeDefinition">
+                                <template #leading="{ item }">
+                                    <BfIcon
+                                        name="folder"
+                                        class="h-3.5 w-3.5 shrink-0 transition-colors duration-75"
+                                        :class="datasetsStore.selectedCategorySlug === item.slug ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-muted)]'"
+                                    />
+                                </template>
+
+                                <template #label="{ item }">
+                                    <span
+                                        class="flex-1 truncate text-xs leading-none"
+                                        :class="entryDropTargetId === item.id || datasetsStore.selectedCategorySlug === item.slug ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-text)]'"
+                                    >
+                                        {{ item.name }}
+                                    </span>
+                                </template>
+
+                                <template #meta="{ item }">
+                                    <span
+                                        v-if="entryDropTargetId === item.id"
+                                        class="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--bf-ui-accent)]"
+                                    >
+                                        Assign
+                                    </span>
+                                </template>
+                            </TreeView>
+
+                            <div v-if="categoryTree.length === 0" class="px-3 py-3">
+                                <BfEmptyState
+                                    compact
+                                    icon="folder"
+                                    title="No categories yet"
+                                    description="Add categories to organise entries for editors."
+                                >
+                                    <div class="pt-2">
+                                        <BfButton variant="secondary" size="sm" @click="datasetsStore.openCreateCategory()">
+                                            Create category
+                                        </BfButton>
+                                    </div>
+                                </BfEmptyState>
+                            </div>
+                        </template>
                     </ModuleScrollArea>
                 </div>
             </Transition>

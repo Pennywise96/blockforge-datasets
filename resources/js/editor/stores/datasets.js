@@ -54,10 +54,15 @@ export const useDatasetsStore = defineStore('datasets', () => {
     const pageContextStore = usePageContextStore()
     const locale = computed(() => pageContextStore.locale || 'en')
     const types = ref([])
+    const isLoadingTypes = ref(false)
+    const typesError = ref('')
     const categories = ref([])
+    const isLoadingCategories = ref(false)
+    const categoriesError = ref('')
     const entries = ref([])
     const pagination = ref(null)
     const isLoadingEntries = ref(false)
+    const entriesError = ref('')
     const currentPage = ref(1)
     const selectedTypeId = ref(null)
     const selectedCategorySlug = ref(null)
@@ -94,6 +99,18 @@ export const useDatasetsStore = defineStore('datasets', () => {
 
         return labels[statusFilter.value] ?? statusFilter.value
     })
+
+    function requestErrorMessage(error, fallback) {
+        if (typeof error?.data?.message === 'string' && error.data.message.trim() !== '') {
+            return error.data.message.trim()
+        }
+
+        if (typeof error?.message === 'string' && error.message.trim() !== '') {
+            return error.message.trim()
+        }
+
+        return fallback
+    }
 
     function normalizeCategories(categoriesPayload) {
         return Array.isArray(categoriesPayload)
@@ -152,30 +169,78 @@ export const useDatasetsStore = defineStore('datasets', () => {
         }
 
         await loadTypes()
+
         hasInitialized.value = true
     }
 
     async function loadTypes() {
-        types.value = await fetchDatasetTypes()
+        isLoadingTypes.value = true
+        typesError.value = ''
+
+        try {
+            types.value = await fetchDatasetTypes()
+
+            if (selectedTypeId.value !== null && !types.value.some((type) => type.id === selectedTypeId.value)) {
+                selectedTypeId.value = null
+            }
+
+            if (selectedTypeId.value === null && types.value.length > 0) {
+                selectedTypeId.value = types.value[0].id
+            }
+
+            if (selectedType.value) {
+                await loadCategories()
+                await loadEntries(1)
+            } else {
+                categories.value = []
+                categoriesError.value = ''
+                entries.value = []
+                entriesError.value = ''
+                pagination.value = null
+            }
+        } catch (error) {
+            types.value = []
+            typesError.value = requestErrorMessage(error, 'Unable to load dataset types.')
+            categories.value = []
+            categoriesError.value = ''
+            entries.value = []
+            entriesError.value = ''
+            pagination.value = null
+        } finally {
+            isLoadingTypes.value = false
+        }
     }
 
     async function loadCategories() {
         if (!selectedType.value) {
             categories.value = []
+            categoriesError.value = ''
             return
         }
 
-        categories.value = await fetchDatasetCategories(selectedType.value.id)
+        isLoadingCategories.value = true
+        categoriesError.value = ''
+
+        try {
+            categories.value = await fetchDatasetCategories(selectedType.value.id)
+        } catch (error) {
+            categories.value = []
+            categoriesError.value = requestErrorMessage(error, 'Unable to load dataset categories.')
+        } finally {
+            isLoadingCategories.value = false
+        }
     }
 
     async function loadEntries(page = currentPage.value) {
         if (!selectedType.value) {
             entries.value = []
             pagination.value = null
+            entriesError.value = ''
             return
         }
 
         isLoadingEntries.value = true
+        entriesError.value = ''
         currentPage.value = page
 
         try {
@@ -188,6 +253,10 @@ export const useDatasetsStore = defineStore('datasets', () => {
 
             entries.value = data?.data ?? data ?? []
             pagination.value = data?.meta ?? null
+        } catch (error) {
+            entries.value = []
+            pagination.value = null
+            entriesError.value = requestErrorMessage(error, 'Unable to load dataset entries.')
         } finally {
             isLoadingEntries.value = false
         }
@@ -529,11 +598,16 @@ export const useDatasetsStore = defineStore('datasets', () => {
     return {
         locale,
         types,
+        isLoadingTypes,
+        typesError,
         categories,
+        isLoadingCategories,
+        categoriesError,
         categoryTree,
         entries,
         pagination,
         isLoadingEntries,
+        entriesError,
         currentPage,
         selectedTypeId,
         selectedType,
@@ -557,6 +631,8 @@ export const useDatasetsStore = defineStore('datasets', () => {
         isSavingCategory,
         isSavingCategoryDetail,
         initialize,
+        loadTypes,
+        loadCategories,
         loadEntries,
         selectType,
         selectCategory,

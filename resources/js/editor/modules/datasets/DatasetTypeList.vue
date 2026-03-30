@@ -1,5 +1,5 @@
 <script setup>
-import { BfButton, BfIcon, ModuleBody, ModuleHeader, ModuleScrollArea, ModuleStackLayout } from '@blockforge-cms/editor-sdk'
+import { BfButton, BfEmptyState, BfIcon, ModuleBody, ModuleHeader, ModuleScrollArea, ModuleStackLayout } from '@blockforge-cms/editor-sdk'
 import { useDatasetsStore } from '../../stores/datasets'
 import DatasetTypeFormPane from './DatasetTypeFormPane.vue'
 
@@ -54,31 +54,69 @@ async function deleteType(type) {
                 <div v-if="!datasetsStore.isCreatingType" class="absolute inset-0 flex flex-col">
                     <ModuleScrollArea class="py-1">
                         <div
-                            v-for="type in datasetsStore.types"
-                            :key="type.id"
-                            class="group flex items-center gap-2 h-7 px-2 rounded cursor-pointer transition-colors duration-75"
-                            :class="datasetsStore.selectedTypeId === type.id ? 'bg-[var(--bf-ui-accent-12)]' : 'hover:bg-black/5'"
-                            @click="datasetsStore.selectType(type)"
+                            v-if="datasetsStore.isLoadingTypes"
+                            class="px-3 py-3 text-xs text-[var(--bf-ui-muted)]"
                         >
-                            <span
-                                class="flex-1 truncate text-xs"
-                                :class="datasetsStore.selectedTypeId === type.id ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-text)]'"
-                            >
-                                {{ type.name }}
-                            </span>
-                            <BfButton
-                                variant="ghost"
-                                size="icon-sm"
-                                class="opacity-0 group-hover:opacity-100"
-                                title="Delete type"
-                                @click.stop="deleteType(type)"
-                            >
-                                <BfIcon name="delete" class="w-3 h-3 hover:text-red-400" />
-                            </BfButton>
+                            Loading types…
                         </div>
 
-                        <div v-if="datasetsStore.types.length === 0" class="px-2 py-2 text-xs text-[var(--bf-ui-muted)]">
-                            No types yet
+                        <div
+                            v-else-if="datasetsStore.typesError"
+                            class="px-3 py-3"
+                        >
+                            <BfEmptyState
+                                compact
+                                icon="warning"
+                                title="Could not load dataset types"
+                                :description="datasetsStore.typesError"
+                            >
+                                <div class="pt-2">
+                                    <BfButton variant="secondary" size="sm" @click="datasetsStore.loadTypes()">
+                                        Retry
+                                    </BfButton>
+                                </div>
+                            </BfEmptyState>
+                        </div>
+
+                        <template v-else>
+                            <div
+                                v-for="type in datasetsStore.types"
+                                :key="type.id"
+                                class="group flex items-center gap-2 h-7 px-2 rounded cursor-pointer transition-colors duration-75"
+                                :class="datasetsStore.selectedTypeId === type.id ? 'bg-[var(--bf-ui-accent-12)]' : 'hover:bg-black/5'"
+                                @click="datasetsStore.selectType(type)"
+                            >
+                                <span
+                                    class="flex-1 truncate text-xs"
+                                    :class="datasetsStore.selectedTypeId === type.id ? 'text-[var(--bf-ui-accent)]' : 'text-[var(--bf-ui-text)]'"
+                                >
+                                    {{ type.name }}
+                                </span>
+                                <BfButton
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    class="opacity-0 group-hover:opacity-100"
+                                    title="Delete type"
+                                    @click.stop="deleteType(type)"
+                                >
+                                    <BfIcon name="delete" class="w-3 h-3 hover:text-red-400" />
+                                </BfButton>
+                            </div>
+                        </template>
+
+                        <div v-if="!datasetsStore.isLoadingTypes && !datasetsStore.typesError && datasetsStore.types.length === 0" class="px-3 py-3">
+                            <BfEmptyState
+                                compact
+                                icon="datasets"
+                                title="No types yet"
+                                description="Create the first dataset type to start managing entries."
+                            >
+                                <div class="pt-2">
+                                    <BfButton variant="primary" size="sm" @click="datasetsStore.openCreateType()">
+                                        Create first type
+                                    </BfButton>
+                                </div>
+                            </BfEmptyState>
                         </div>
                     </ModuleScrollArea>
                 </div>
