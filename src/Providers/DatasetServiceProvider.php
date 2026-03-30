@@ -6,6 +6,7 @@ use Blockforge\Cms\Routing\PageRouteFallbackRegistry;
 use Blockforge\Cms\Support\EditorPackageRegistry;
 use Blockforge\Cms\ViewHelpers\ViewHelperRegistry;
 use Blockforge\Datasets\Routing\CanonicalDatasetDetailPageResolver;
+use Blockforge\Datasets\ViewHelpers\DatasetCategoriesViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetDetailViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetItemsViewHelper;
 use Forte\Facades\Forte;
@@ -34,6 +35,7 @@ class DatasetServiceProvider extends ServiceProvider
         $viewHelperRegistry = app(ViewHelperRegistry::class);
         $viewHelperRegistry->register('dataset.items', DatasetItemsViewHelper::class);
         $viewHelperRegistry->register('dataset.detail', DatasetDetailViewHelper::class);
+        $viewHelperRegistry->register('dataset.categories', DatasetCategoriesViewHelper::class);
 
         Route::middleware('api')
             ->prefix('api')
