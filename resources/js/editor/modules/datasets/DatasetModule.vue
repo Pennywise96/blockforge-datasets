@@ -61,7 +61,7 @@ onMounted(async () => {
         <ModuleSidebar style="width: 200px;">
             <ModuleBody>
                 <div class="flex h-full min-h-0 flex-col">
-                    <div class="h-44 shrink-0">
+                    <div class="shrink-0 dataset-types-rail">
                         <DatasetTypeList />
                     </div>
                     <div v-if="datasetsStore.selectedType" class="min-h-0 flex-1 border-t border-[var(--bf-ui-border)]">
@@ -192,6 +192,10 @@ onMounted(async () => {
 
 <style scoped>
 @layer cms-editor {
+.dataset-types-rail {
+    height: 176px;
+}
+
 .drill-forward-enter-active,
 .drill-forward-leave-active,
 .drill-back-enter-active,

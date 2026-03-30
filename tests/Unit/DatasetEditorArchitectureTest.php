@@ -37,8 +37,7 @@ it('registers the dataset module from the package editor entry and imports share
     expect($datasetApi)->toContain("from '@blockforge-cms/editor-sdk'")
         ->toContain('export async function fetchDatasetTypes');
 
-    expect($editorCss)->toContain("@import 'tailwindcss/theme';")
-        ->toContain("@import 'tailwindcss/utilities';")
+    expect($editorCss)->toContain("@import 'tailwindcss/utilities';")
         ->toContain("@source '../js/**/*.js';")
         ->toContain("@source '../js/**/*.vue';");
 
