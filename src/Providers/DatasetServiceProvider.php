@@ -33,6 +33,10 @@ class DatasetServiceProvider extends ServiceProvider
 
         Forte::app()->include($packageRoot.'/resources/views/**');
 
+        $this->publishes([
+            $packageRoot.'/dist' => public_path('vendor/blockforge/datasets'),
+        ], 'blockforge-datasets-assets');
+
         $viewHelperRegistry = app(ViewHelperRegistry::class);
         $viewHelperRegistry->register('dataset.items', DatasetItemsViewHelper::class);
         $viewHelperRegistry->register('dataset.detail', DatasetDetailViewHelper::class);
@@ -61,6 +65,7 @@ class DatasetServiceProvider extends ServiceProvider
             'package' => 'blockforge/datasets',
             'connected' => true,
         ]);
+        $registry->registerBuild('datasets', 'vendor/blockforge/datasets');
 
         if (class_exists(PageRouteFallbackRegistry::class)) {
             $this->app->make(PageRouteFallbackRegistry::class)

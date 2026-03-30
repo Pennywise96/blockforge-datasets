@@ -1,0 +1,16 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^6.0.4",
+        "vite": "^7.0.7"
+    },
+    "dependencies": {
+        "pinia": "^3.0.4",
+        "vue": "^3.5.29"
+    }
+}

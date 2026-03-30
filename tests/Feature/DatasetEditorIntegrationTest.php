@@ -4,6 +4,7 @@ use App\Models\User;
 use Blockforge\Cms\Http\Middleware\ResolveCmsSite;
 use Blockforge\Cms\Models\CmsSite;
 use Blockforge\Cms\Models\CmsSiteLocale;
+use Blockforge\Cms\Support\EditorPackageRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -50,4 +51,13 @@ it('exposes the datasets editor integration through the cms context api', functi
         ->assertJsonPath('integrations.datasets.provider', 'Blockforge Datasets')
         ->assertJsonPath('integrations.datasets.package', 'blockforge/datasets')
         ->assertJsonPath('integrations.datasets.connected', true);
+});
+
+it('registers the datasets editor build with the cms editor package registry', function (): void {
+    expect(app(EditorPackageRegistry::class)->builds())
+        ->toContain([
+            'public_base_path' => 'vendor/blockforge/datasets',
+            'js_entry' => 'resources/js/editor.js',
+            'css_entry' => 'resources/css/editor.css',
+        ]);
 });

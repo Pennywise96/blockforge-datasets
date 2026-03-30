@@ -1,0 +1,11 @@
+{
+  "resources/js/editor.js": {
+    "file": "assets/editor-DR3CRLBS.js",
+    "name": "editor",
+    "src": "resources/js/editor.js",
+    "isEntry": true,
+    "css": [
+      "assets/editor-Dq1SjNjZ.css"
+    ]
+  }
+}

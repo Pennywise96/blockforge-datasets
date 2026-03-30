@@ -1,0 +1,30 @@
+<?php
+
+it('registers the dataset module from the package editor entry and imports shared cms ui through the sdk', function (): void {
+    $editorEntry = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor.js');
+    $datasetModule = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/modules/datasets/DatasetModule.vue');
+    $datasetDetailPane = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/modules/datasets/DatasetEntryDetailPane.vue');
+    $datasetStore = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/stores/datasets.js');
+    $datasetApi = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/utils/datasetApi.js');
+    $viteConfig = file_get_contents(dirname(__DIR__, 2).'/vite.config.js');
+
+    expect($editorEntry)->toContain('registerModules({')
+        ->toContain("id: 'datasets'")
+        ->toContain('component: DatasetModule');
+
+    expect($datasetModule)->toContain("from '@blockforge-cms/editor-sdk'")
+        ->toContain("import { useDatasetsStore } from '../../stores/datasets'");
+
+    expect($datasetDetailPane)->toContain('slot-id="datasets.entry.detail.actions"')
+        ->toContain("from '@blockforge-cms/editor-sdk'");
+
+    expect($datasetStore)->toContain("export const useDatasetsStore = defineStore('datasets'")
+        ->toContain("import { usePageContextStore } from '@blockforge-cms/editor-sdk'");
+
+    expect($datasetApi)->toContain("from '@blockforge-cms/editor-sdk'")
+        ->toContain('export async function fetchDatasetTypes');
+
+    expect($viteConfig)->toContain('editor-sdk/browser.js')
+        ->toContain('editor-sdk/browser-vue.js')
+        ->toContain('editor-sdk/browser-pinia.js');
+});
