@@ -248,9 +248,12 @@ class DatasetController
 
         return [
             'id' => $mediaItem->id,
+            'media_item_id' => $mediaItem->id,
             'category_id' => $mediaItem->category_id,
             'disk' => $mediaItem->disk,
             'path' => $mediaItem->path,
+            'url' => $mediaItem->url(),
+            'webp_url' => $mediaItem->webpUrl(),
             'filename' => $mediaItem->filename,
             'mime_type' => $mediaItem->mime_type,
             'size' => $mediaItem->size,

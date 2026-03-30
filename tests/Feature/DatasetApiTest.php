@@ -189,7 +189,10 @@ test('can create a translation for a dataset entry', function (): void {
         ->assertJsonPath('title', 'My Blog Post')
         ->assertJsonPath('locale', 'en')
         ->assertJsonPath('data.image.id', $mediaItem->id)
-        ->assertJsonPath('data.image.filename', 'cover.jpg');
+        ->assertJsonPath('data.image.media_item_id', $mediaItem->id)
+        ->assertJsonPath('data.image.filename', 'cover.jpg')
+        ->assertJsonPath('data.image.url', $mediaItem->url())
+        ->assertJsonPath('data.image.webp_url', null);
 
     $translation = CmsDatasetTranslation::query()
         ->where('dataset_id', $dataset->id)
@@ -222,7 +225,10 @@ test('can update existing translation', function (): void {
     ])->assertOk()
         ->assertJsonPath('title', 'New Title')
         ->assertJsonPath('data.image.id', $mediaItem->id)
-        ->assertJsonPath('data.image.path', 'media/replacement.jpg');
+        ->assertJsonPath('data.image.media_item_id', $mediaItem->id)
+        ->assertJsonPath('data.image.path', 'media/replacement.jpg')
+        ->assertJsonPath('data.image.url', $mediaItem->url())
+        ->assertJsonPath('data.image.webp_url', null);
 
     $translation = CmsDatasetTranslation::query()
         ->where('dataset_id', $dataset->id)
