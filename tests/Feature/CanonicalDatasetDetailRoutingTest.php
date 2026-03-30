@@ -48,11 +48,11 @@ function makeCanonicalRoutingPage(CmsSite $site, array $attributes = []): CmsPag
     ], $attributes));
 }
 
-function makeCanonicalRoutingType(string $slug = 'blog'): CmsDatasetType
+function makeCanonicalRoutingType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->create([
-        'name' => ucfirst($slug),
-        'slug' => $slug,
+        'name' => ucfirst($code),
+        'code' => $code,
     ]);
 }
 
@@ -61,7 +61,7 @@ function makeCanonicalRoutingEntry(CmsDatasetType $type, string $slug): CmsDatas
     $dataset = CmsDataset::query()->create([
         'type_id' => $type->id,
         'slug' => $slug,
-        'status' => 'published',
+        'visibility_mode' => 'always',
     ]);
 
     $dataset->translations()->create([

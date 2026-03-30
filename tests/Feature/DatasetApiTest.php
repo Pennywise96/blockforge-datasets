@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\User;
+use Blockforge\Cms\Config\Page;
+use Blockforge\Cms\Fields\PictureField;
+use Blockforge\Cms\Fields\TextInput;
 use Blockforge\Cms\Http\Middleware\ResolveCmsSite;
 use Blockforge\Cms\Models\CmsMediaItem;
 use Blockforge\Cms\Models\CmsSite;
@@ -9,6 +12,7 @@ use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetTranslation;
 use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Schemas\DatasetSchema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -35,7 +39,7 @@ function getDatasetTestLocale(): CmsSiteLocale
 function makeDatasetType(string $slug = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->firstOrCreate(
-        ['slug' => $slug],
+        ['code' => $slug],
         ['name' => ucfirst($slug)],
     );
 }
@@ -45,8 +49,16 @@ function makeDataset(CmsDatasetType $type, array $attrs = []): CmsDataset
     return CmsDataset::query()->create(array_merge([
         'type_id' => $type->id,
         'slug' => 'test-entry',
-        'status' => 'published',
+        'visibility_mode' => 'always',
     ], $attrs));
+}
+
+function bindDatasetSchema(DatasetSchema ...$schemas): void
+{
+    app()->instance(
+        Page::class,
+        Page::make('dataset-test')->registerDatasetSchemas($schemas),
+    );
 }
 
 function makeDatasetMediaItem(string $filename = 'cover.jpg'): CmsMediaItem
@@ -87,12 +99,12 @@ test('can list datasets', function (): void {
         ->assertJsonPath('total', 2);
 });
 
-test('can filter datasets by status', function (): void {
+test('can filter datasets by visibility', function (): void {
     $type = makeDatasetType();
-    makeDataset($type, ['slug' => 'published-post', 'status' => 'published']);
-    makeDataset($type, ['slug' => 'draft-post', 'status' => 'draft']);
+    makeDataset($type, ['slug' => 'always-post', 'visibility_mode' => 'always']);
+    makeDataset($type, ['slug' => 'disabled-post', 'visibility_mode' => 'disabled']);
 
-    $this->getJson('/api/cms/datasets?type=blog&status=published')
+    $this->getJson('/api/cms/datasets?type=blog&visibility=always')
         ->assertOk()
         ->assertJsonPath('total', 1);
 });
@@ -115,12 +127,18 @@ test('can create a dataset entry', function (): void {
     $this->postJson('/api/cms/datasets', [
         'type_id' => $type->id,
         'slug' => 'my-post',
-        'status' => 'draft',
-        'date' => '2026-03-01',
+        'visibility_mode' => 'scheduled',
+        'visibility_ranges' => [
+            [
+                'starts_at' => '2026-03-01T10:00:00Z',
+                'ends_at' => '2026-03-10T10:00:00Z',
+            ],
+        ],
     ])->assertCreated()
         ->assertJsonPath('slug', 'my-post')
-        ->assertJsonPath('status', 'draft')
-        ->assertJsonPath('date', '2026-03-01');
+        ->assertJsonPath('visibility_mode', 'scheduled')
+        ->assertJsonPath('visibility_ranges.0.starts_at', '2026-03-01T10:00:00.000000Z')
+        ->assertJsonPath('visibility_ranges.0.ends_at', '2026-03-10T10:00:00.000000Z');
 });
 
 test('create dataset requires type_id and slug', function (): void {
@@ -128,13 +146,13 @@ test('create dataset requires type_id and slug', function (): void {
         ->assertUnprocessable();
 });
 
-test('create dataset rejects invalid status', function (): void {
+test('create dataset rejects invalid visibility mode', function (): void {
     $type = makeDatasetType();
 
     $this->postJson('/api/cms/datasets', [
         'type_id' => $type->id,
         'slug' => 'post',
-        'status' => 'archived',
+        'visibility_mode' => 'archived',
     ])->assertUnprocessable();
 });
 
@@ -153,11 +171,17 @@ test('can update a dataset entry', function (): void {
     $dataset = makeDataset($type);
 
     $this->putJson("/api/cms/datasets/{$dataset->id}", [
-        'status' => 'published',
-        'date' => '2026-06-15',
+        'visibility_mode' => 'scheduled',
+        'visibility_ranges' => [
+            [
+                'starts_at' => '2026-06-15T08:00:00Z',
+                'ends_at' => '2026-06-20T20:00:00Z',
+            ],
+        ],
     ])->assertOk()
-        ->assertJsonPath('status', 'published')
-        ->assertJsonPath('date', '2026-06-15');
+        ->assertJsonPath('visibility_mode', 'scheduled')
+        ->assertJsonPath('visibility_ranges.0.starts_at', '2026-06-15T08:00:00.000000Z')
+        ->assertJsonPath('visibility_ranges.0.ends_at', '2026-06-20T20:00:00.000000Z');
 });
 
 test('can delete a dataset entry', function (): void {
@@ -173,26 +197,21 @@ test('can delete a dataset entry', function (): void {
 test('can create a translation for a dataset entry', function (): void {
     $type = makeDatasetType();
     $dataset = makeDataset($type);
-    $mediaItem = makeDatasetMediaItem();
+    bindDatasetSchema(
+        DatasetSchema::make('blog')->fields([
+            TextInput::make('subtitle')->label('Subtitle')->translatable(),
+        ]),
+    );
 
     $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [
         'title' => 'My Blog Post',
-        'excerpt' => 'Short excerpt here.',
-        'content' => 'Full content body.',
         'data' => [
-            'image' => [
-                'id' => $mediaItem->id,
-                'filename' => 'ignored-by-normalizer.jpg',
-            ],
+            'subtitle' => 'Short teaser',
         ],
     ])->assertOk()
         ->assertJsonPath('title', 'My Blog Post')
         ->assertJsonPath('locale', 'en')
-        ->assertJsonPath('data.image.id', $mediaItem->id)
-        ->assertJsonPath('data.image.media_item_id', $mediaItem->id)
-        ->assertJsonPath('data.image.filename', 'cover.jpg')
-        ->assertJsonPath('data.image.url', $mediaItem->url())
-        ->assertJsonPath('data.image.webp_url', null);
+        ->assertJsonPath('data.subtitle', 'Short teaser');
 
     $translation = CmsDatasetTranslation::query()
         ->where('dataset_id', $dataset->id)
@@ -202,9 +221,7 @@ test('can create a translation for a dataset entry', function (): void {
     expect($translation)->not->toBeNull()
         ->and($translation?->title)->toBe('My Blog Post')
         ->and($translation?->data)->toMatchArray([
-            'image' => [
-                'media_item_id' => $mediaItem->id,
-            ],
+            'subtitle' => 'Short teaser',
         ]);
 });
 
@@ -212,23 +229,20 @@ test('can update existing translation', function (): void {
     $type = makeDatasetType();
     $dataset = makeDataset($type);
     $dataset->translations()->create(['locale' => 'en', 'title' => 'Old Title']);
-    $mediaItem = makeDatasetMediaItem('replacement.jpg');
+    bindDatasetSchema(
+        DatasetSchema::make('blog')->fields([
+            TextInput::make('subtitle')->label('Subtitle')->translatable(),
+        ]),
+    );
 
     $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [
         'title' => 'New Title',
         'data' => [
-            'image' => [
-                'id' => $mediaItem->id,
-                'filename' => 'replacement.jpg',
-            ],
+            'subtitle' => 'Updated subtitle',
         ],
     ])->assertOk()
         ->assertJsonPath('title', 'New Title')
-        ->assertJsonPath('data.image.id', $mediaItem->id)
-        ->assertJsonPath('data.image.media_item_id', $mediaItem->id)
-        ->assertJsonPath('data.image.path', 'media/replacement.jpg')
-        ->assertJsonPath('data.image.url', $mediaItem->url())
-        ->assertJsonPath('data.image.webp_url', null);
+        ->assertJsonPath('data.subtitle', 'Updated subtitle');
 
     $translation = CmsDatasetTranslation::query()
         ->where('dataset_id', $dataset->id)
@@ -239,10 +253,35 @@ test('can update existing translation', function (): void {
         CmsDatasetTranslation::query()->where('dataset_id', $dataset->id)->count()
     )->toBe(1)
         ->and($translation?->data)->toMatchArray([
-            'image' => [
-                'media_item_id' => $mediaItem->id,
-            ],
+            'subtitle' => 'Updated subtitle',
         ]);
+});
+
+test('normalizes and resolves schema-backed picture fields on dataset config', function (): void {
+    $type = makeDatasetType();
+    $dataset = makeDataset($type);
+    $mediaItem = makeDatasetMediaItem();
+    bindDatasetSchema(
+        DatasetSchema::make('blog')->fields([
+            PictureField::make('image')->label('Image'),
+        ]),
+    );
+
+    $this->putJson("/api/cms/datasets/{$dataset->id}", [
+        'slug' => 'test-entry',
+        'visibility_mode' => 'always',
+        'config' => [
+            'image' => [
+                'id' => $mediaItem->id,
+                'filename' => 'ignored-by-normalizer.jpg',
+            ],
+        ],
+    ])->assertOk()
+        ->assertJsonPath('config.image.id', $mediaItem->id)
+        ->assertJsonPath('config.image.media_item_id', $mediaItem->id)
+        ->assertJsonPath('config.image.filename', 'cover.jpg')
+        ->assertJsonPath('config.image.url', $mediaItem->url())
+        ->assertJsonPath('config.image.webp_url', null);
 });
 
 test('translation update requires title', function (): void {
@@ -251,6 +290,42 @@ test('translation update requires title', function (): void {
 
     $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [])
         ->assertUnprocessable();
+});
+
+test('persists schema-backed translatable and non-translatable fields', function (): void {
+    $type = makeDatasetType();
+    $dataset = makeDataset($type);
+    bindDatasetSchema(
+        DatasetSchema::make('blog')->fields([
+            TextInput::make('room_code')->label('Room Code')->required(),
+            TextInput::make('subtitle')->label('Subtitle')->translatable(),
+        ]),
+    );
+
+    $this->putJson("/api/cms/datasets/{$dataset->id}", [
+        'slug' => 'room-a',
+        'visibility_mode' => 'always',
+        'config' => [
+            'room_code' => 'A-01',
+        ],
+    ])->assertOk()
+        ->assertJsonPath('config.room_code', 'A-01');
+
+    $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [
+        'title' => 'Room A',
+        'data' => [
+            'subtitle' => 'Lake view',
+        ],
+    ])->assertOk()
+        ->assertJsonPath('data.subtitle', 'Lake view');
+
+    expect($dataset->fresh()->config)->toMatchArray([
+        'room_code' => 'A-01',
+    ]);
+
+    expect($dataset->fresh()->translations()->where('locale', 'en')->first()?->data)->toMatchArray([
+        'subtitle' => 'Lake view',
+    ]);
 });
 
 test('can sync categories for a dataset entry', function (): void {

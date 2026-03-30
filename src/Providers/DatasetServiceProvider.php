@@ -2,10 +2,12 @@
 
 namespace Blockforge\Datasets\Providers;
 
+use Blockforge\Cms\Loader\CmsConfigCache;
 use Blockforge\Cms\Routing\PageRouteFallbackRegistry;
 use Blockforge\Cms\Support\EditorPackageRegistry;
 use Blockforge\Cms\ViewHelpers\ViewHelperRegistry;
 use Blockforge\Datasets\Routing\CanonicalDatasetDetailPageResolver;
+use Blockforge\Datasets\Schemas\DatasetSchema;
 use Blockforge\Datasets\ViewHelpers\DatasetCategoriesViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetContextViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetDetailViewHelper;
@@ -20,6 +22,10 @@ class DatasetServiceProvider extends ServiceProvider
     public function register(): void
     {
         config(['blockforge.features.datasets' => true]);
+
+        if (class_exists(CmsConfigCache::class)) {
+            CmsConfigCache::allowClass(DatasetSchema::class);
+        }
     }
 
     public function boot(): void

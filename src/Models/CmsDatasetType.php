@@ -11,7 +11,7 @@ class CmsDatasetType extends Model
 
     protected $fillable = [
         'name',
-        'slug',
+        'code',
         'description',
         'sort_order',
     ];

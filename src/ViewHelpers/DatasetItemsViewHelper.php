@@ -8,6 +8,7 @@ use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Support\DatasetArchiveQueryFactory;
 use Blockforge\Datasets\Support\DatasetDetailPageService;
 use Blockforge\Datasets\Support\DatasetTypeResolver;
+use Blockforge\Datasets\Support\DatasetVisibilityService;
 
 class DatasetItemsViewHelper extends ViewHelper
 {
@@ -19,13 +20,13 @@ class DatasetItemsViewHelper extends ViewHelper
         ?string $category = null,
         ?string $search = null,
         ?int $pageNumber = null,
-        string $orderBy = 'date',
+        string $orderBy = 'created_at',
         string $direction = 'desc',
-        string $status = 'published',
+        string $visibility = 'visible',
         ?string $detailBase = null,
     ): string {
         $locale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
-        $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $search, $pageNumber, $orderBy, $direction, $status);
+        $items = $this->fetchItems($locale, $detailBase, $type, $limit, $category, $search, $pageNumber, $orderBy, $direction, $visibility);
 
         $output = '';
         $total = count($items);
@@ -85,7 +86,7 @@ class DatasetItemsViewHelper extends ViewHelper
         ?int $pageNumber,
         string $orderBy,
         string $direction,
-        string $status,
+        string $visibility,
     ): array {
         $typeModel = app(DatasetTypeResolver::class)->resolve($type);
 
@@ -102,11 +103,11 @@ class DatasetItemsViewHelper extends ViewHelper
         $detailBase ??= app(DatasetDetailPageService::class)->detailBaseForType($typeModel);
 
         $query = app(DatasetArchiveQueryFactory::class)
-            ->make($typeModel, $category, $search, $status)
-            ->with(['translations', 'categories']);
+            ->make($typeModel, $category, $search, $visibility)
+            ->with(['translations', 'categories', 'visibilityRanges']);
 
-        $allowedOrderColumns = ['date', 'sort_order', 'created_at'];
-        $orderColumn = in_array($orderBy, $allowedOrderColumns, true) ? $orderBy : 'date';
+        $allowedOrderColumns = ['sort_order', 'created_at', 'slug'];
+        $orderColumn = in_array($orderBy, $allowedOrderColumns, true) ? $orderBy : 'created_at';
         $direction = in_array(strtolower($direction), ['asc', 'desc'], true) ? $direction : 'desc';
 
         $query->orderBy($orderColumn, $direction);
@@ -124,6 +125,7 @@ class DatasetItemsViewHelper extends ViewHelper
         return $query->get()->map(function (CmsDataset $dataset) use ($locale, $defaultLocale, $typeModel, $detailBase): DatasetObject {
             $translation = $dataset->translations->firstWhere('locale', $locale)
                 ?? $dataset->translations->firstWhere('locale', $defaultLocale);
+            $translationData = $this->resolveTranslationData($translation?->data ?? [], $translation?->excerpt, $translation?->content);
 
             $categories = $dataset->categories->map(fn ($cat) => [
                 'id' => $cat->id,
@@ -134,16 +136,14 @@ class DatasetItemsViewHelper extends ViewHelper
             return new DatasetObject(
                 fields: [
                     'id' => $dataset->id,
-                    'type' => $typeModel->slug,
+                    'type' => $typeModel->code,
                     'slug' => $dataset->slug,
-                    'date' => $dataset->date,
-                    'status' => $dataset->status,
                     'title' => $translation?->title ?? '',
-                    'excerpt' => $translation?->excerpt,
-                    'content' => $translation?->content,
+                    'visibility_mode' => $dataset->visibility_mode,
+                    'is_visible_now' => app(DatasetVisibilityService::class)->isVisibleNow($dataset),
                 ],
                 config: $dataset->config ?? [],
-                data: $translation?->data ?? [],
+                data: $translationData,
                 categories: $categories,
                 detailBase: $detailBase,
             );
@@ -161,5 +161,22 @@ class DatasetItemsViewHelper extends ViewHelper
         return is_numeric($limit) && (int) $limit > 0
             ? (int) $limit
             : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function resolveTranslationData(array $data, ?string $excerpt, ?string $content): array
+    {
+        if ($excerpt !== null && ! array_key_exists('excerpt', $data)) {
+            $data['excerpt'] = $excerpt;
+        }
+
+        if ($content !== null && ! array_key_exists('content', $data)) {
+            $data['content'] = $content;
+        }
+
+        return $data;
     }
 }

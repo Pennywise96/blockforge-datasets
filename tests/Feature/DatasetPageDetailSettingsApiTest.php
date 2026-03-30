@@ -36,11 +36,11 @@ function makeDatasetDetailPage(CmsSite $site, array $attributes = []): CmsPage
     ], $attributes));
 }
 
-function makeDatasetDetailType(string $slug = 'blog'): CmsDatasetType
+function makeDatasetDetailType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->create([
-        'name' => ucfirst($slug),
-        'slug' => $slug,
+        'name' => ucfirst($code),
+        'code' => $code,
     ]);
 }
 
@@ -60,7 +60,7 @@ test('can mark a page as the canonical dataset detail page', function (): void {
     ])->assertOk()
         ->assertJsonPath('is_dataset_detail_page', true)
         ->assertJsonPath('dataset_detail_type_id', $type->id)
-        ->assertJsonPath('dataset_detail_type_slug', 'blog');
+        ->assertJsonPath('dataset_detail_type_code', 'blog');
 
     expect(CmsDatasetDetailPage::query()->where('page_id', $detailPage->id)->exists())->toBeTrue()
         ->and($detailPage->fresh()->nav_hidden)->toBeTrue();

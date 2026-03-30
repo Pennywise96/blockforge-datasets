@@ -4,12 +4,11 @@ namespace Blockforge\Datasets\Elements;
 
 use Blockforge\Cms\Elements\MediaItemObject;
 use Blockforge\Cms\Models\CmsMediaItem;
-use Illuminate\Support\Carbon;
 
 /**
  * Lightweight value object wrapping a CmsDataset entry with its resolved translation.
  *
- * Fixed fields: id, type, slug, date, status, title, excerpt, content
+ * Fixed fields: id, type, slug, title, visibility_mode, is_visible_now
  * Extra configurable fields are accessible via get() or magic property access.
  */
 class DatasetObject
@@ -32,11 +31,9 @@ class DatasetObject
             'id' => null,
             'type' => '',
             'slug' => '',
-            'date' => null,
-            'status' => 'draft',
             'title' => '',
-            'excerpt' => null,
-            'content' => null,
+            'visibility_mode' => 'disabled',
+            'is_visible_now' => false,
         ], $fields);
     }
 
@@ -111,17 +108,6 @@ class DatasetObject
         return $slug !== '' ? rtrim($this->detailBase, '/').'/'.$slug : null;
     }
 
-    public function date(): ?Carbon
-    {
-        $date = $this->fields['date'] ?? null;
-
-        if ($date instanceof Carbon) {
-            return $date;
-        }
-
-        return $date ? Carbon::parse($date) : null;
-    }
-
     private function resolveExtraValue(mixed $value): mixed
     {
         $mediaPayload = $this->resolveMediaPayload($value);
@@ -145,6 +131,8 @@ class DatasetObject
             'size' => $mediaPayload['size'] ?? null,
             'width' => $mediaPayload['width'] ?? null,
             'height' => $mediaPayload['height'] ?? null,
+            'url' => $mediaPayload['url'] ?? null,
+            'webp_url' => $mediaPayload['webp_url'] ?? null,
             'focal_x' => $mediaPayload['focal_x'] ?? 0.5,
             'focal_y' => $mediaPayload['focal_y'] ?? 0.5,
             'alt' => $translation['alt'] ?? null,
@@ -182,6 +170,8 @@ class DatasetObject
             'media_item_id' => $mediaItem->id,
             'disk' => $mediaItem->disk,
             'path' => $mediaItem->path,
+            'url' => $mediaItem->url(),
+            'webp_url' => $mediaItem->webpUrl(),
             'filename' => $mediaItem->filename,
             'mime_type' => $mediaItem->mime_type,
             'size' => $mediaItem->size,

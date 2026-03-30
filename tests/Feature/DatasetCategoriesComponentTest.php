@@ -40,11 +40,11 @@ function makeCategoryLocale(CmsSite $site): CmsSiteLocale
     ]);
 }
 
-function makeCategoryType(string $slug = 'blog'): CmsDatasetType
+function makeCategoryType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->create([
-        'name' => ucfirst($slug),
-        'slug' => $slug,
+        'name' => ucfirst($code),
+        'code' => $code,
     ]);
 }
 
@@ -68,12 +68,12 @@ function makeDatasetCategory(CmsDatasetType $type, string $slug, string $name, i
     ]);
 }
 
-function makeCategoryEntry(CmsDatasetType $type, string $slug, string $title, string $status = 'published'): CmsDataset
+function makeCategoryEntry(CmsDatasetType $type, string $slug, string $title, string $visibilityMode = 'always'): CmsDataset
 {
     $dataset = CmsDataset::query()->create([
         'type_id' => $type->id,
         'slug' => $slug,
-        'status' => $status,
+        'visibility_mode' => $visibilityMode,
     ]);
 
     $dataset->translations()->create([
@@ -177,7 +177,7 @@ test('can restrict the category collection to a provided subset', function (): v
         ->and($captured['blogCategories'][0]->slug)->toBe('updates');
 });
 
-test('can limit categories to used ones and expose published entry counts', function (): void {
+test('can limit categories to used ones and expose visible entry counts', function (): void {
     $site = makeCategoryTestSite();
     $locale = makeCategoryLocale($site);
     $type = makeCategoryType('blog');
@@ -187,7 +187,7 @@ test('can limit categories to used ones and expose published entry counts', func
 
     $first = makeCategoryEntry($type, 'post-1', 'Post 1');
     $second = makeCategoryEntry($type, 'post-2', 'Post 2');
-    $draft = makeCategoryEntry($type, 'post-3', 'Post 3', 'draft');
+    $draft = makeCategoryEntry($type, 'post-3', 'Post 3', 'disabled');
 
     $first->categories()->attach($news->id);
     $second->categories()->attach([$news->id, $updates->id]);

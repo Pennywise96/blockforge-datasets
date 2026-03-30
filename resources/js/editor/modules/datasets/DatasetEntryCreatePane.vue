@@ -1,7 +1,19 @@
 <script setup>
-import { BfButton, BfField, BfInput, BfSelect, ModuleFooterBar, ModuleInfoCard, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
+import { computed } from 'vue'
+import { BfButton, BfField, BfInput, ModuleFooterBar, ModuleInfoCard, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
+import { groupDatasetSchemaFields } from '../../utils/datasetSchema'
+import DatasetSchemaFieldRenderer from './DatasetSchemaFieldRenderer.vue'
+import DatasetVisibilityEditor from './DatasetVisibilityEditor.vue'
 
-defineProps({
+const props = defineProps({
+    type: {
+        type: Object,
+        default: null,
+    },
+    fields: {
+        type: Array,
+        default: () => [],
+    },
     form: {
         type: Object,
         required: true,
@@ -13,6 +25,13 @@ defineProps({
 })
 
 const emit = defineEmits(['save', 'sync-slug'])
+
+const translatableGroups = computed(() => groupDatasetSchemaFields(props.fields, props.form, true))
+const settingsGroups = computed(() => groupDatasetSchemaFields(props.fields, props.form, false))
+
+function patchForm(nextForm) {
+    Object.assign(props.form, nextForm)
+}
 </script>
 
 <template>
@@ -20,10 +39,10 @@ const emit = defineEmits(['save', 'sync-slug'])
         <ModuleScrollArea>
             <div class="flex flex-col gap-4 px-3 py-3">
                 <ModuleInfoCard label="New entry" value-class="mt-1 text-xs leading-relaxed text-[var(--bf-ui-text)]">
-                    Create a new record for the selected dataset type and publish it when it is ready.
+                    Create a new record for {{ type?.name ?? 'this dataset type' }} and define its visibility before publishing.
                 </ModuleInfoCard>
 
-                <BfField label="Title">
+                <BfField label="Title" required>
                     <BfInput
                         v-model="form.title"
                         type="text"
@@ -33,7 +52,7 @@ const emit = defineEmits(['save', 'sync-slug'])
                     />
                 </BfField>
 
-                <BfField label="Slug">
+                <BfField label="Slug" required>
                     <div class="flex items-center gap-2">
                         <BfInput
                             v-model="form.slug"
@@ -54,21 +73,42 @@ const emit = defineEmits(['save', 'sync-slug'])
                     </div>
                 </BfField>
 
-                <div class="grid grid-cols-2 gap-2">
-                    <BfField label="Date">
-                        <BfInput
-                            v-model="form.date"
-                            type="date"
+                <template v-for="group in translatableGroups" :key="group.key">
+                    <ModuleInfoCard
+                        v-if="group.label !== 'General'"
+                        :label="group.label"
+                        value-class="hidden"
+                    />
+                    <div class="space-y-4">
+                        <DatasetSchemaFieldRenderer
+                            v-for="field in group.fields"
+                            :key="field.name"
+                            :field="field"
+                            :form="form"
                         />
-                    </BfField>
+                    </div>
+                </template>
 
-                    <BfField label="Status">
-                        <BfSelect v-model="form.status">
-                            <option value="draft">Draft</option>
-                            <option value="published">Published</option>
-                        </BfSelect>
-                    </BfField>
-                </div>
+                <template v-for="group in settingsGroups" :key="`settings-${group.key}`">
+                    <ModuleInfoCard
+                        v-if="group.label !== 'General'"
+                        :label="group.label"
+                        value-class="hidden"
+                    />
+                    <div class="space-y-4">
+                        <DatasetSchemaFieldRenderer
+                            v-for="field in group.fields"
+                            :key="field.name"
+                            :field="field"
+                            :form="form"
+                        />
+                    </div>
+                </template>
+
+                <DatasetVisibilityEditor
+                    :model-value="form"
+                    @update:model-value="patchForm"
+                />
             </div>
         </ModuleScrollArea>
 

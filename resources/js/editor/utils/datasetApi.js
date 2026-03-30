@@ -58,9 +58,9 @@ export async function deleteDatasetCategory(categoryId) {
     })
 }
 
-export async function fetchDatasets({ typeSlug, categorySlug = null, status = 'all', page = 1, perPage = 30 }) {
+export async function fetchDatasets({ typeCode, categorySlug = null, visibility = 'all', page = 1, perPage = 30 }) {
     const params = new URLSearchParams({
-        type: String(typeSlug),
+        type: String(typeCode),
         per_page: String(perPage),
         page: String(page),
     })
@@ -69,8 +69,8 @@ export async function fetchDatasets({ typeSlug, categorySlug = null, status = 'a
         params.set('category', String(categorySlug))
     }
 
-    if (status !== 'all') {
-        params.set('status', String(status))
+    if (visibility !== 'all') {
+        params.set('visibility', String(visibility))
     }
 
     return await requestJson(`/api/cms/datasets?${params}`)

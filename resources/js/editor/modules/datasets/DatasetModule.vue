@@ -104,13 +104,15 @@ onMounted(async () => {
 
                     <BfSelect
                         v-if="datasetsStore.selectedType && !isEntryPanelOpen"
-                        v-model="datasetsStore.statusFilter"
+                        v-model="datasetsStore.visibilityFilter"
                         class="w-auto"
-                        @change="datasetsStore.setStatusFilter(datasetsStore.statusFilter)"
+                        @change="datasetsStore.setVisibilityFilter(datasetsStore.visibilityFilter)"
                     >
                         <option value="all">All</option>
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
+                        <option value="visible">Visible now</option>
+                        <option value="always">Always active</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="disabled">Disabled</option>
                     </BfSelect>
 
                     <BfButton
@@ -135,7 +137,6 @@ onMounted(async () => {
                         :error="datasetsStore.entriesError"
                         :locale="datasetsStore.locale"
                         :selected-entry-id="datasetsStore.selectedEntryId"
-                        :format-date="datasetsStore.formatDate"
                         @retry="datasetsStore.loadEntries()"
                         @select="openEntry"
                         @delete="deleteEntry"
@@ -146,6 +147,8 @@ onMounted(async () => {
                 <Transition name="drill-forward">
                     <DatasetEntryCreatePane
                         v-if="isCreatingEntry && datasetsStore.selectedType"
+                        :type="datasetsStore.selectedType"
+                        :fields="datasetsStore.selectedTypeFields"
                         :form="datasetsStore.createEntryForm"
                         :is-saving="datasetsStore.isSavingEntry"
                         @save="datasetsStore.submitCreateEntry"
@@ -156,6 +159,8 @@ onMounted(async () => {
                 <Transition name="drill-forward">
                     <DatasetEntryDetailPane
                         v-if="isEditingEntry"
+                        :type="datasetsStore.selectedType"
+                        :fields="datasetsStore.selectedTypeFields"
                         :entry="datasetsStore.selectedEntry"
                         :form="datasetsStore.detailForm"
                         :is-saving="datasetsStore.isSavingDetail"

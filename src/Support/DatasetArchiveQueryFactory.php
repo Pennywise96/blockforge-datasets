@@ -8,15 +8,20 @@ use Illuminate\Database\Eloquent\Builder;
 
 class DatasetArchiveQueryFactory
 {
+    public function __construct(
+        private readonly DatasetVisibilityService $visibilityService,
+    ) {}
+
     public function make(
         CmsDatasetType $type,
         ?string $category = null,
         ?string $search = null,
-        string $status = 'published',
+        string $visibility = 'visible',
     ): Builder {
         $query = CmsDataset::query()
-            ->where('type_id', $type->id)
-            ->where('status', $status);
+            ->where('type_id', $type->id);
+
+        $this->applyVisibilityFilter($query, $visibility);
 
         if ($category !== null) {
             $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
@@ -35,5 +40,16 @@ class DatasetArchiveQueryFactory
         }
 
         return $query;
+    }
+
+    private function applyVisibilityFilter(Builder $query, string $visibility): void
+    {
+        match ($visibility) {
+            'disabled' => $query->where('visibility_mode', 'disabled'),
+            'always' => $query->where('visibility_mode', 'always'),
+            'scheduled' => $query->where('visibility_mode', 'scheduled'),
+            'all' => null,
+            default => $this->visibilityService->applyVisibleNow($query),
+        };
     }
 }

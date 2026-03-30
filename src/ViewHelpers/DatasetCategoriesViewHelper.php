@@ -8,6 +8,7 @@ use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetType;
 use Blockforge\Datasets\Support\DatasetDetailPageService;
 use Blockforge\Datasets\Support\DatasetTypeResolver;
+use Blockforge\Datasets\Support\DatasetVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
 
 class DatasetCategoriesViewHelper extends ViewHelper
@@ -65,16 +66,18 @@ class DatasetCategoriesViewHelper extends ViewHelper
 
         if ($withCount || $onlyUsed) {
             $query->withCount([
-                'datasets as published_datasets_count' => fn (Builder $builder) => $builder
-                    ->where('type_id', $typeModel->id)
-                    ->where('status', 'published'),
+                'datasets as published_datasets_count' => function (Builder $builder) use ($typeModel): void {
+                    $builder->where('type_id', $typeModel->id);
+                    app(DatasetVisibilityService::class)->applyVisibleNow($builder);
+                },
             ]);
         }
 
         if ($onlyUsed) {
-            $query->whereHas('datasets', fn (Builder $builder) => $builder
-                ->where('type_id', $typeModel->id)
-                ->where('status', 'published'));
+            $query->whereHas('datasets', function (Builder $builder) use ($typeModel): void {
+                $builder->where('type_id', $typeModel->id);
+                app(DatasetVisibilityService::class)->applyVisibleNow($builder);
+            });
         }
 
         $allowedSortColumns = ['sort_order', 'name', 'slug', 'created_at'];

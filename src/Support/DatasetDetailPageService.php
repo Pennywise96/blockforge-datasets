@@ -21,7 +21,7 @@ class DatasetDetailPageService
         return [
             'is_dataset_detail_page' => $mapping !== null,
             'dataset_detail_type_id' => $mapping?->dataset_type_id,
-            'dataset_detail_type_slug' => $mapping?->datasetType?->slug,
+            'dataset_detail_type_code' => $mapping?->datasetType?->code,
             'dataset_detail_type_name' => $mapping?->datasetType?->name,
         ];
     }

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { buildTree } from '../utils/buildTree'
 import { slugify } from '../utils/slugify'
+import { buildDatasetSchemaForm, extractDatasetSchemaConfig, extractDatasetSchemaData } from '../utils/datasetSchema'
 import { usePageContextStore } from '@blockforge-cms/editor-sdk'
 import {
     createDataset,
@@ -23,23 +24,21 @@ function buildCategoryTree(flatCategories, parentId = null) {
     return buildTree(flatCategories, parentId)
 }
 
-function createEmptyDetailForm() {
+function createEmptyTypeForm() {
     return {
-        title: '',
-        excerpt: '',
-        content: '',
-        image: null,
-        date: '',
-        status: 'draft',
+        name: '',
+        code: '',
+        description: '',
     }
 }
 
-function createEmptyEntryForm() {
+function createEmptyEntryForm(fields = []) {
     return {
         title: '',
         slug: '',
-        date: '',
-        status: 'draft',
+        visibility_mode: 'disabled',
+        visibility_ranges: [],
+        ...buildDatasetSchemaForm(fields, {}, {}),
     }
 }
 
@@ -48,6 +47,52 @@ function createEmptyCategoryForm(category = null) {
         name: category?.name ?? '',
         slug: category?.slug ?? '',
     }
+}
+
+function toLocalDateTimeInput(value) {
+    if (!value) {
+        return ''
+    }
+
+    const date = new Date(value)
+
+    if (Number.isNaN(date.getTime())) {
+        return ''
+    }
+
+    const pad = (segment) => String(segment).padStart(2, '0')
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function toIsoDateTime(value) {
+    if (!value) {
+        return null
+    }
+
+    const date = new Date(value)
+
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function normalizeVisibilityRangesForForm(ranges) {
+    return Array.isArray(ranges)
+        ? ranges.map((range) => ({
+            starts_at: toLocalDateTimeInput(range?.starts_at ?? null),
+            ends_at: toLocalDateTimeInput(range?.ends_at ?? null),
+        }))
+        : []
+}
+
+function normalizeVisibilityRangesForApi(ranges) {
+    return Array.isArray(ranges)
+        ? ranges
+            .map((range) => ({
+                starts_at: toIsoDateTime(range?.starts_at ?? null),
+                ends_at: toIsoDateTime(range?.ends_at ?? null),
+            }))
+            .filter((range) => range.starts_at || range.ends_at)
+        : []
 }
 
 export const useDatasetsStore = defineStore('datasets', () => {
@@ -66,15 +111,15 @@ export const useDatasetsStore = defineStore('datasets', () => {
     const currentPage = ref(1)
     const selectedTypeId = ref(null)
     const selectedCategorySlug = ref(null)
-    const statusFilter = ref('all')
+    const visibilityFilter = ref('all')
     const selectedEntryId = ref(null)
-    const detailForm = ref(createEmptyDetailForm())
+    const detailForm = ref(createEmptyEntryForm())
     const isSavingDetail = ref(false)
     const isCreatingEntry = ref(false)
     const createEntryForm = ref(createEmptyEntryForm())
     const isSavingEntry = ref(false)
     const isCreatingType = ref(false)
-    const createTypeName = ref('')
+    const createTypeForm = ref(createEmptyTypeForm())
     const isSavingType = ref(false)
     const editingCategoryId = ref(null)
     const editingCategory = computed(() =>
@@ -90,14 +135,21 @@ export const useDatasetsStore = defineStore('datasets', () => {
     const selectedType = computed(() =>
         types.value.find((type) => type.id === selectedTypeId.value) ?? null,
     )
+    const selectedTypeFields = computed(() => selectedType.value?.schema?.fields ?? [])
     const categoryTree = computed(() => buildCategoryTree(categories.value))
     const selectedEntry = computed(() =>
         entries.value.find((entry) => entry.id === selectedEntryId.value) ?? null,
     )
-    const statusLabel = computed(() => {
-        const labels = { all: 'All', draft: 'Draft', published: 'Published' }
+    const visibilityLabel = computed(() => {
+        const labels = {
+            all: 'All',
+            visible: 'Visible',
+            disabled: 'Disabled',
+            always: 'Always active',
+            scheduled: 'Scheduled',
+        }
 
-        return labels[statusFilter.value] ?? statusFilter.value
+        return labels[visibilityFilter.value] ?? visibilityFilter.value
     })
 
     function requestErrorMessage(error, fallback) {
@@ -162,6 +214,32 @@ export const useDatasetsStore = defineStore('datasets', () => {
 
         return removedFromVisibleList
     }
+
+    function buildEntryForm(entry = null) {
+        if (!entry) {
+            return createEmptyEntryForm(selectedTypeFields.value)
+        }
+
+        const translation = entry?.translations?.[locale.value] ?? {}
+
+        return {
+            title: translation.title ?? '',
+            slug: entry.slug ?? '',
+            visibility_mode: entry.visibility_mode ?? 'disabled',
+            visibility_ranges: normalizeVisibilityRangesForForm(entry.visibility_ranges),
+            ...buildDatasetSchemaForm(
+                selectedTypeFields.value,
+                entry.config ?? {},
+                translation.data ?? {},
+            ),
+        }
+    }
+
+    watch(locale, () => {
+        if (selectedEntryId.value !== null) {
+            detailForm.value = buildEntryForm(selectedEntry.value)
+        }
+    })
 
     async function initialize() {
         if (hasInitialized.value) {
@@ -245,9 +323,9 @@ export const useDatasetsStore = defineStore('datasets', () => {
 
         try {
             const data = await fetchDatasets({
-                typeSlug: selectedType.value.slug,
+                typeCode: selectedType.value.code,
                 categorySlug: selectedCategorySlug.value,
-                status: statusFilter.value,
+                visibility: visibilityFilter.value,
                 page,
             })
 
@@ -280,30 +358,20 @@ export const useDatasetsStore = defineStore('datasets', () => {
         await loadEntries(1)
     }
 
-    async function setStatusFilter(status) {
-        statusFilter.value = status
+    async function setVisibilityFilter(visibility) {
+        visibilityFilter.value = visibility
         await loadEntries(1)
     }
 
     function selectEntry(entryId) {
         cancelCreateEntry()
         selectedEntryId.value = entryId
-        const entry = selectedEntry.value
-        const translation = entry?.translations?.[locale.value] ?? {}
-
-        detailForm.value = entry ? {
-            title: translation.title ?? '',
-            excerpt: translation.excerpt ?? '',
-            content: translation.content ?? '',
-            image: translation.data?.image ?? null,
-            date: entry.date ?? '',
-            status: entry.status ?? 'draft',
-        } : createEmptyDetailForm()
+        detailForm.value = buildEntryForm(selectedEntry.value)
     }
 
     function closeSelectedEntry() {
         selectedEntryId.value = null
-        detailForm.value = createEmptyDetailForm()
+        detailForm.value = createEmptyEntryForm(selectedTypeFields.value)
     }
 
     async function saveEntryDetail() {
@@ -316,15 +384,13 @@ export const useDatasetsStore = defineStore('datasets', () => {
         try {
             await updateDatasetTranslation(selectedEntry.value.id, locale.value, {
                 title: detailForm.value.title,
-                excerpt: detailForm.value.excerpt || null,
-                content: detailForm.value.content || null,
-                data: {
-                    image: detailForm.value.image ?? null,
-                },
+                data: extractDatasetSchemaData(selectedTypeFields.value, detailForm.value),
             })
             await updateDataset(selectedEntry.value.id, {
-                date: detailForm.value.date || null,
-                status: detailForm.value.status,
+                slug: detailForm.value.slug,
+                visibility_mode: detailForm.value.visibility_mode,
+                visibility_ranges: normalizeVisibilityRangesForApi(detailForm.value.visibility_ranges),
+                config: extractDatasetSchemaConfig(selectedTypeFields.value, detailForm.value),
             })
             await loadEntries(currentPage.value)
             selectEntry(selectedEntry.value.id)
@@ -336,12 +402,12 @@ export const useDatasetsStore = defineStore('datasets', () => {
     function openCreateEntry() {
         closeSelectedEntry()
         isCreatingEntry.value = true
-        createEntryForm.value = createEmptyEntryForm()
+        createEntryForm.value = createEmptyEntryForm(selectedTypeFields.value)
     }
 
     function cancelCreateEntry() {
         isCreatingEntry.value = false
-        createEntryForm.value = createEmptyEntryForm()
+        createEntryForm.value = createEmptyEntryForm(selectedTypeFields.value)
     }
 
     function syncCreateEntrySlug() {
@@ -359,12 +425,14 @@ export const useDatasetsStore = defineStore('datasets', () => {
             const created = await createDataset({
                 type_id: selectedType.value.id,
                 slug: createEntryForm.value.slug || slugify(createEntryForm.value.title),
-                date: createEntryForm.value.date || null,
-                status: createEntryForm.value.status,
+                visibility_mode: createEntryForm.value.visibility_mode,
+                visibility_ranges: normalizeVisibilityRangesForApi(createEntryForm.value.visibility_ranges),
+                config: extractDatasetSchemaConfig(selectedTypeFields.value, createEntryForm.value),
             })
 
             await updateDatasetTranslation(created.id, locale.value, {
                 title: createEntryForm.value.title,
+                data: extractDatasetSchemaData(selectedTypeFields.value, createEntryForm.value),
             })
 
             await loadEntries(1)
@@ -434,16 +502,20 @@ export const useDatasetsStore = defineStore('datasets', () => {
 
     function openCreateType() {
         isCreatingType.value = true
-        createTypeName.value = ''
+        createTypeForm.value = createEmptyTypeForm()
     }
 
     function cancelCreateType() {
         isCreatingType.value = false
-        createTypeName.value = ''
+        createTypeForm.value = createEmptyTypeForm()
+    }
+
+    function syncCreateTypeCode() {
+        createTypeForm.value.code = slugify(createTypeForm.value.name)
     }
 
     async function submitCreateType() {
-        if (!createTypeName.value.trim()) {
+        if (!createTypeForm.value.name.trim() || !createTypeForm.value.code.trim()) {
             return
         }
 
@@ -451,8 +523,9 @@ export const useDatasetsStore = defineStore('datasets', () => {
 
         try {
             const newType = await createDatasetType({
-                name: createTypeName.value,
-                slug: slugify(createTypeName.value),
+                name: createTypeForm.value.name,
+                code: createTypeForm.value.code,
+                description: createTypeForm.value.description || null,
             })
 
             await loadTypes()
@@ -587,12 +660,10 @@ export const useDatasetsStore = defineStore('datasets', () => {
         await loadCategories()
     }
 
-    function formatDate(dateString) {
-        if (!dateString) {
-            return '—'
-        }
-
-        return new Date(dateString).toLocaleDateString()
+    function visibilityTone(entry) {
+        return entry?.is_visible_now
+            ? 'text-emerald-500'
+            : 'text-[var(--bf-ui-muted)]'
     }
 
     return {
@@ -611,9 +682,10 @@ export const useDatasetsStore = defineStore('datasets', () => {
         currentPage,
         selectedTypeId,
         selectedType,
+        selectedTypeFields,
         selectedCategorySlug,
-        statusFilter,
-        statusLabel,
+        visibilityFilter,
+        visibilityLabel,
         selectedEntryId,
         selectedEntry,
         detailForm,
@@ -622,7 +694,7 @@ export const useDatasetsStore = defineStore('datasets', () => {
         createEntryForm,
         isSavingEntry,
         isCreatingType,
-        createTypeName,
+        createTypeForm,
         isSavingType,
         editingCategory,
         isCreatingCategory,
@@ -636,7 +708,7 @@ export const useDatasetsStore = defineStore('datasets', () => {
         loadEntries,
         selectType,
         selectCategory,
-        setStatusFilter,
+        setVisibilityFilter,
         selectEntry,
         closeSelectedEntry,
         saveEntryDetail,
@@ -649,6 +721,7 @@ export const useDatasetsStore = defineStore('datasets', () => {
         removeEntryCategory,
         openCreateType,
         cancelCreateType,
+        syncCreateTypeCode,
         submitCreateType,
         deleteTypeById,
         openCreateCategory,
@@ -660,6 +733,6 @@ export const useDatasetsStore = defineStore('datasets', () => {
         saveCategoryDetail,
         deleteCategoryById,
         moveCategory,
-        formatDate,
+        visibilityTone,
     }
 })

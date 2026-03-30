@@ -12,7 +12,7 @@ use Blockforge\Datasets\Support\DatasetTypeResolver;
 
 class DatasetContextViewHelper extends ViewHelper
 {
-    public function render(mixed $type = null, string $as = 'dataset', ?int $limit = null, string $status = 'published'): string
+    public function render(mixed $type = null, string $as = 'dataset', ?int $limit = null, string $visibility = 'visible'): string
     {
         $typeModel = $this->resolveType($type);
 
@@ -25,13 +25,13 @@ class DatasetContextViewHelper extends ViewHelper
         $currentSearch = $this->resolveCurrentSearch();
 
         $context = new DatasetContextObject(
-            type: $typeModel->slug,
+            type: $typeModel->code,
             listUrl: app(DatasetDetailPageService::class)->detailBaseForType($typeModel),
             currentCategory: $currentCategory,
             currentPage: $currentPage,
             currentSearch: $currentSearch,
             currentLimit: $limit,
-            totalItems: $this->resolveTotalItems($typeModel, $limit, $currentCategory, $currentSearch, $status),
+            totalItems: $this->resolveTotalItems($typeModel, $limit, $currentCategory, $currentSearch, $visibility),
         );
 
         $archivePage = $this->resolveArchivePage();
@@ -130,14 +130,14 @@ class DatasetContextViewHelper extends ViewHelper
         ?int $limit,
         ?string $category,
         ?string $search,
-        string $status,
+        string $visibility,
     ): ?int {
         if ($limit === null || $limit < 1) {
             return null;
         }
 
         return app(DatasetArchiveQueryFactory::class)
-            ->make($type, $category, $search, $status)
+            ->make($type, $category, $search, $visibility)
             ->count();
     }
 

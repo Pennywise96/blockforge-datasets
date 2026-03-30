@@ -1,10 +1,10 @@
 <script setup>
-import { BfButton, BfField, BfInput, ModuleFooterBar, ModuleInfoCard, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
+import { BfButton, BfField, BfInput, BfTextarea, ModuleFooterBar, ModuleInfoCard, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
 
 defineProps({
-    name: {
-        type: String,
-        default: '',
+    form: {
+        type: Object,
+        required: true,
     },
     isSaving: {
         type: Boolean,
@@ -12,7 +12,7 @@ defineProps({
     },
 })
 
-const emit = defineEmits(['update:name', 'save'])
+const emit = defineEmits(['save', 'sync-code'])
 </script>
 
 <template>
@@ -20,17 +20,45 @@ const emit = defineEmits(['update:name', 'save'])
         <ModuleScrollArea>
             <div class="flex flex-col gap-4 px-3 py-3">
                 <ModuleInfoCard label="New type" value-class="mt-1 text-xs leading-relaxed text-[var(--bf-ui-text)]">
-                    Create a top-level dataset type like blog, treatments, events, or news.
+                    Create a dataset type with a stable code. Optional schema files can extend the type with custom fields later.
                 </ModuleInfoCard>
 
-                <BfField label="Name">
+                <BfField label="Name" required>
                     <BfInput
-                        :model-value="name"
+                        v-model="form.name"
                         type="text"
-                        placeholder="e.g. Blog, Treatments"
+                        placeholder="e.g. Rooms, Treatments"
                         autofocus
-                        @update:model-value="emit('update:name', $event)"
                         @keydown.enter="emit('save')"
+                    />
+                </BfField>
+
+                <BfField label="Code" required>
+                    <div class="flex items-center gap-2">
+                        <BfInput
+                            v-model="form.code"
+                            type="text"
+                            placeholder="e.g. room, treatment"
+                            mono
+                            class="min-w-0 flex-1"
+                        />
+                        <BfButton
+                            variant="secondary"
+                            size="sm"
+                            rounded="lg"
+                            class="shrink-0"
+                            @click="emit('sync-code')"
+                        >
+                            Auto
+                        </BfButton>
+                    </div>
+                </BfField>
+
+                <BfField label="Description">
+                    <BfTextarea
+                        v-model="form.description"
+                        rows="4"
+                        placeholder="Optional description for editors."
                     />
                 </BfField>
             </div>

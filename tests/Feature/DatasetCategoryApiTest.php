@@ -14,11 +14,11 @@ beforeEach(function (): void {
     $this->actingAs(User::factory()->create());
 });
 
-function makeType(string $slug = 'blog'): CmsDatasetType
+function makeType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->firstOrCreate(
-        ['slug' => $slug],
-        ['name' => ucfirst($slug)],
+        ['code' => $code],
+        ['name' => ucfirst($code)],
     );
 }
 

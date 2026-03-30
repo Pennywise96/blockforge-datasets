@@ -41,11 +41,11 @@ function makeItemsLocale(CmsSite $site): CmsSiteLocale
     ]);
 }
 
-function makeItemsType(string $slug = 'blog'): CmsDatasetType
+function makeItemsType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->create([
-        'name' => ucfirst($slug),
-        'slug' => $slug,
+        'name' => ucfirst($code),
+        'code' => $code,
     ]);
 }
 
@@ -64,13 +64,15 @@ function makeItemsEntry(CmsDatasetType $type, string $slug, string $title): CmsD
     $dataset = CmsDataset::query()->create([
         'type_id' => $type->id,
         'slug' => $slug,
-        'status' => 'published',
+        'visibility_mode' => 'always',
     ]);
 
     $dataset->translations()->create([
         'locale' => 'en',
         'title' => $title,
-        'excerpt' => 'Excerpt for '.$title,
+        'data' => [
+            'excerpt' => 'Excerpt for '.$title,
+        ],
     ]);
 
     return $dataset;

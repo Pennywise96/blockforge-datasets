@@ -5,12 +5,13 @@ use Blockforge\Datasets\Elements\DatasetObject;
 
 it('exposes fixed fields via magic property access', function (): void {
     $obj = new DatasetObject(
-        fields: ['title' => 'Hello', 'slug' => 'hello', 'status' => 'published'],
+        fields: ['title' => 'Hello', 'slug' => 'hello', 'visibility_mode' => 'always', 'is_visible_now' => true],
     );
 
     expect($obj->title)->toBe('Hello')
         ->and($obj->slug)->toBe('hello')
-        ->and($obj->status)->toBe('published')
+        ->and($obj->visibility_mode)->toBe('always')
+        ->and($obj->is_visible_now)->toBeTrue()
         ->and($obj->excerpt)->toBeNull();
 });
 
@@ -20,7 +21,8 @@ it('falls back to default values for missing fixed fields', function (): void {
     expect($obj->id)->toBeNull()
         ->and($obj->type)->toBe('')
         ->and($obj->slug)->toBe('')
-        ->and($obj->status)->toBe('draft')
+        ->and($obj->visibility_mode)->toBe('disabled')
+        ->and($obj->is_visible_now)->toBeFalse()
         ->and($obj->title)->toBe('')
         ->and($obj->content)->toBeNull();
 });
@@ -133,25 +135,6 @@ it('hasCategory returns true for matching slug', function (): void {
 
     expect($obj->hasCategory('news'))->toBeTrue()
         ->and($obj->hasCategory('sport'))->toBeFalse();
-});
-
-it('date() returns null when no date set', function (): void {
-    $obj = new DatasetObject;
-
-    expect($obj->date())->toBeNull();
-});
-
-it('date() returns Carbon instance when date is set', function (): void {
-    $obj = new DatasetObject(
-        fields: ['date' => '2026-01-15'],
-    );
-
-    $date = $obj->date();
-
-    expect($date)->not->toBeNull()
-        ->and($date->year)->toBe(2026)
-        ->and($date->month)->toBe(1)
-        ->and($date->day)->toBe(15);
 });
 
 it('url() returns null when no detailBase is set', function (): void {

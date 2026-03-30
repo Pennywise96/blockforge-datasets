@@ -44,11 +44,11 @@ function makeContextLocale(CmsSite $site): CmsSiteLocale
     ]);
 }
 
-function makeContextType(string $slug = 'blog'): CmsDatasetType
+function makeContextType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->create([
-        'name' => ucfirst($slug),
-        'slug' => $slug,
+        'name' => ucfirst($code),
+        'code' => $code,
     ]);
 }
 
@@ -67,7 +67,7 @@ function makeContextEntry(CmsDatasetType $type, string $slug, string $title): Cm
     $dataset = CmsDataset::query()->create([
         'type_id' => $type->id,
         'slug' => $slug,
-        'status' => 'published',
+        'visibility_mode' => 'always',
     ]);
 
     $dataset->translations()->create([

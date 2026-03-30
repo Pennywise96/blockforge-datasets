@@ -92,6 +92,14 @@ async function deleteType(type) {
                                 >
                                     {{ type.name }}
                                 </span>
+                                <span
+                                    class="shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em]"
+                                    :class="type.schema_status === 'available'
+                                        ? 'border-emerald-500/30 text-emerald-500'
+                                        : 'border-[var(--bf-ui-border)] text-[var(--bf-ui-muted)]'"
+                                >
+                                    {{ type.schema_status === 'available' ? 'schema' : 'built-in' }}
+                                </span>
                                 <BfButton
                                     variant="ghost"
                                     size="icon-sm"
@@ -125,9 +133,9 @@ async function deleteType(type) {
             <Transition name="drill-forward">
                 <DatasetTypeFormPane
                     v-if="datasetsStore.isCreatingType"
-                    :name="datasetsStore.createTypeName"
+                    :form="datasetsStore.createTypeForm"
                     :is-saving="datasetsStore.isSavingType"
-                    @update:name="datasetsStore.createTypeName = $event"
+                    @sync-code="datasetsStore.syncCreateTypeCode"
                     @save="datasetsStore.submitCreateType"
                 />
             </Transition>

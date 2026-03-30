@@ -14,8 +14,7 @@ class CmsDataset extends Model
     protected $fillable = [
         'type_id',
         'slug',
-        'date',
-        'status',
+        'visibility_mode',
         'sort_order',
         'config',
     ];
@@ -23,7 +22,6 @@ class CmsDataset extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
             'sort_order' => 'integer',
             'config' => 'array',
         ];
@@ -42,5 +40,10 @@ class CmsDataset extends Model
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(CmsDatasetCategory::class, 'bf_dataset_category_dataset', 'dataset_id', 'category_id');
+    }
+
+    public function visibilityRanges(): HasMany
+    {
+        return $this->hasMany(CmsDatasetVisibilityRange::class, 'dataset_id')->orderBy('sort_order');
     }
 }

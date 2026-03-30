@@ -27,11 +27,11 @@ function getDetailTestLocale(): CmsSiteLocale
     );
 }
 
-function makeDetailType(string $slug = 'blog'): CmsDatasetType
+function makeDetailType(string $code = 'blog'): CmsDatasetType
 {
     return CmsDatasetType::query()->firstOrCreate(
-        ['slug' => $slug],
-        ['name' => ucfirst($slug)],
+        ['code' => $code],
+        ['name' => ucfirst($code)],
     );
 }
 
@@ -40,13 +40,15 @@ function makeDetailEntry(CmsDatasetType $type, string $slug, string $title = 'Te
     $dataset = CmsDataset::query()->create([
         'type_id' => $type->id,
         'slug' => $slug,
-        'status' => 'published',
+        'visibility_mode' => 'always',
     ]);
 
     $dataset->translations()->create([
         'locale' => 'en',
         'title' => $title,
-        'excerpt' => 'An excerpt.',
+        'data' => [
+            'excerpt' => 'An excerpt.',
+        ],
     ]);
 
     return $dataset;
@@ -149,7 +151,7 @@ test('explicit type prop takes priority over bound cms.dataset_type', function (
         ->and($captured['post']->type)->toBe('blog');
 });
 
-test('aborts 404 when slug is set but no matching published entry exists', function (): void {
+test('aborts 404 when slug is set but no matching visible entry exists', function (): void {
     makeDetailType('blog');
 
     app()->instance('cms.dataset_slug', 'nonexistent-slug');

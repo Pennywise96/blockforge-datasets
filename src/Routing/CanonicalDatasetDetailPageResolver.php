@@ -8,6 +8,7 @@ use Blockforge\Cms\Routing\PageRouteFallbackResolver;
 use Blockforge\Cms\Support\PageSlugService;
 use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Support\DatasetDetailPageService;
+use Blockforge\Datasets\Support\DatasetVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
 
 class CanonicalDatasetDetailPageResolver implements PageRouteFallbackResolver
@@ -62,11 +63,13 @@ class CanonicalDatasetDetailPageResolver implements PageRouteFallbackResolver
             return null;
         }
 
-        $datasetExists = CmsDataset::query()
+        $datasetQuery = CmsDataset::query()
             ->where('type_id', $mapping->dataset_type_id)
-            ->where('slug', $datasetSlug)
-            ->where('status', 'published')
-            ->exists();
+            ->where('slug', $datasetSlug);
+
+        app(DatasetVisibilityService::class)->applyVisibleNow($datasetQuery);
+
+        $datasetExists = $datasetQuery->exists();
 
         if (! $datasetExists) {
             return null;

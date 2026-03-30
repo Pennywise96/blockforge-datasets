@@ -6,6 +6,7 @@ use Blockforge\Cms\ViewHelpers\ViewHelper;
 use Blockforge\Datasets\Elements\DatasetObject;
 use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Support\DatasetTypeResolver;
+use Blockforge\Datasets\Support\DatasetVisibilityService;
 
 class DatasetDetailViewHelper extends ViewHelper
 {
@@ -38,17 +39,17 @@ class DatasetDetailViewHelper extends ViewHelper
         $dataset = CmsDataset::query()
             ->where('type_id', $typeModel->id)
             ->where('slug', $entrySlug)
-            ->where('status', 'published')
-            ->with(['translations', 'categories'])
+            ->with(['translations', 'categories', 'visibilityRanges'])
             ->first();
 
-        if ($dataset === null) {
+        if ($dataset === null || ! app(DatasetVisibilityService::class)->isVisibleNow($dataset)) {
             abort(404);
         }
 
         $defaultLocale = config('app.locale', 'en');
         $translation = $dataset->translations->firstWhere('locale', $locale)
             ?? $dataset->translations->firstWhere('locale', $defaultLocale);
+        $translationData = $this->resolveTranslationData($translation?->data ?? [], $translation?->excerpt, $translation?->content);
 
         $categories = $dataset->categories->map(fn ($cat) => [
             'id' => $cat->id,
@@ -59,17 +60,32 @@ class DatasetDetailViewHelper extends ViewHelper
         return new DatasetObject(
             fields: [
                 'id' => $dataset->id,
-                'type' => $typeModel->slug,
+                'type' => $typeModel->code,
                 'slug' => $dataset->slug,
-                'date' => $dataset->date,
-                'status' => $dataset->status,
                 'title' => $translation?->title ?? '',
-                'excerpt' => $translation?->excerpt,
-                'content' => $translation?->content,
+                'visibility_mode' => $dataset->visibility_mode,
+                'is_visible_now' => true,
             ],
             config: $dataset->config ?? [],
-            data: $translation?->data ?? [],
+            data: $translationData,
             categories: $categories,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function resolveTranslationData(array $data, ?string $excerpt, ?string $content): array
+    {
+        if ($excerpt !== null && ! array_key_exists('excerpt', $data)) {
+            $data['excerpt'] = $excerpt;
+        }
+
+        if ($content !== null && ! array_key_exists('content', $data)) {
+            $data['content'] = $content;
+        }
+
+        return $data;
     }
 }

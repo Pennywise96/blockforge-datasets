@@ -2,30 +2,46 @@
 
 namespace Blockforge\Datasets\Http\Controllers\Api;
 
-use Blockforge\Cms\Models\CmsMediaItem;
 use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetTranslation;
+use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Schemas\DatasetSchema;
+use Blockforge\Datasets\Schemas\DatasetSchemaMediaNormalizer;
+use Blockforge\Datasets\Schemas\DatasetSchemaRegistry;
+use Blockforge\Datasets\Schemas\DatasetSchemaValidator;
+use Blockforge\Datasets\Support\DatasetVisibilityService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class DatasetController
 {
+    public function __construct(
+        private readonly DatasetSchemaRegistry $schemaRegistry,
+        private readonly DatasetSchemaValidator $schemaValidator,
+        private readonly DatasetSchemaMediaNormalizer $mediaNormalizer,
+        private readonly DatasetVisibilityService $visibilityService,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $query = CmsDataset::query()
-            ->with(['type', 'translations', 'categories'])
-            ->orderByDesc('date')
+            ->with(['type', 'translations', 'categories', 'visibilityRanges'])
             ->orderByDesc('created_at');
 
         if ($request->filled('type')) {
-            $query->whereHas('type', fn ($q) => $q->where('slug', $request->string('type')));
+            $query->whereHas('type', fn ($q) => $q->where('code', $request->string('type')));
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+        $visibilityFilter = $request->string('visibility')->toString();
+
+        if ($visibilityFilter === '' && $request->filled('status')) {
+            $visibilityFilter = $request->string('status')->toString() === 'published' ? 'visible' : 'disabled';
         }
+
+        $this->applyEditorVisibilityFilter($query, $visibilityFilter === '' ? 'all' : $visibilityFilter);
 
         if ($request->filled('category')) {
             $query->whereHas('categories', fn ($q) => $q->where('slug', $request->string('category')));
@@ -42,21 +58,45 @@ class DatasetController
         $validated = $request->validate([
             'type_id' => ['required', 'integer', 'exists:bf_dataset_types,id'],
             'slug' => ['required', 'string', 'max:255'],
-            'date' => ['nullable', 'date'],
-            'status' => ['sometimes', 'in:draft,published'],
+            'visibility_mode' => ['sometimes', 'in:disabled,always,scheduled'],
+            'visibility_ranges' => ['nullable', 'array'],
+            'visibility_ranges.*.starts_at' => ['nullable', 'date'],
+            'visibility_ranges.*.ends_at' => ['nullable', 'date'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'config' => ['nullable', 'array'],
         ]);
 
-        $dataset = CmsDataset::query()->create($validated);
-        $dataset->load(['type', 'translations', 'categories']);
+        $datasetType = CmsDatasetType::query()->findOrFail($validated['type_id']);
+        $schema = $this->resolveSchemaForType($datasetType);
+        $normalizedCustomData = $this->schemaValidator->validate(
+            $schema,
+            $validated['config'] ?? [],
+            [],
+        );
+
+        $dataset = CmsDataset::query()->create([
+            'type_id' => $datasetType->id,
+            'slug' => $validated['slug'],
+            'visibility_mode' => $this->resolveVisibilityMode($validated),
+            'sort_order' => $validated['sort_order'] ?? 0,
+            'config' => $this->mediaNormalizer->normalizeConfig($schema, $normalizedCustomData['config']),
+        ]);
+
+        $this->syncVisibilityRanges(
+            $dataset,
+            $dataset->visibility_mode === 'scheduled'
+                ? ($validated['visibility_ranges'] ?? [])
+                : [],
+        );
+
+        $dataset->load(['type', 'translations', 'categories', 'visibilityRanges']);
 
         return response()->json($this->serializeDataset($dataset), 201);
     }
 
     public function show(CmsDataset $dataset): JsonResponse
     {
-        $dataset->load(['type', 'translations', 'categories']);
+        $dataset->load(['type', 'translations', 'categories', 'visibilityRanges']);
 
         return response()->json($this->serializeDataset($dataset));
     }
@@ -65,14 +105,45 @@ class DatasetController
     {
         $validated = $request->validate([
             'slug' => ['sometimes', 'string', 'max:255'],
-            'date' => ['nullable', 'date'],
-            'status' => ['sometimes', 'in:draft,published'],
+            'visibility_mode' => ['sometimes', 'in:disabled,always,scheduled'],
+            'visibility_ranges' => ['nullable', 'array'],
+            'visibility_ranges.*.starts_at' => ['nullable', 'date'],
+            'visibility_ranges.*.ends_at' => ['nullable', 'date'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'config' => ['nullable', 'array'],
         ]);
 
-        $dataset->update($validated);
-        $dataset->load(['type', 'translations', 'categories']);
+        $dataset->loadMissing('type', 'translations');
+        $schema = $this->resolveSchemaForType($dataset->type);
+        $activeLocale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
+        $existingTranslationData = $this->existingTranslationData($dataset, $activeLocale);
+        $nextConfig = array_key_exists('config', $validated)
+            ? array_replace_recursive($dataset->config ?? [], $validated['config'] ?? [])
+            : ($dataset->config ?? []);
+
+        $normalizedCustomData = $this->schemaValidator->validate(
+            $schema,
+            $nextConfig,
+            $existingTranslationData,
+        );
+
+        $dataset->update([
+            'slug' => $validated['slug'] ?? $dataset->slug,
+            'visibility_mode' => $this->resolveVisibilityMode($validated, $dataset->visibility_mode),
+            'sort_order' => $validated['sort_order'] ?? $dataset->sort_order,
+            'config' => $this->mediaNormalizer->normalizeConfig($schema, $normalizedCustomData['config']),
+        ]);
+
+        if (array_key_exists('visibility_ranges', $validated) || $dataset->visibility_mode !== 'scheduled') {
+            $this->syncVisibilityRanges(
+                $dataset,
+                $dataset->visibility_mode === 'scheduled'
+                    ? ($validated['visibility_ranges'] ?? [])
+                    : [],
+            );
+        }
+
+        $dataset->load(['type', 'translations', 'categories', 'visibilityRanges']);
 
         return response()->json($this->serializeDataset($dataset));
     }
@@ -88,19 +159,38 @@ class DatasetController
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'excerpt' => ['nullable', 'string'],
-            'content' => ['nullable', 'string'],
             'data' => ['nullable', 'array'],
         ]);
 
-        $validated['data'] = $this->normalizeTranslationData($validated['data'] ?? null);
+        $dataset->loadMissing('type');
+
+        $existingTranslation = CmsDatasetTranslation::query()
+            ->where('dataset_id', $dataset->id)
+            ->where('locale', $locale)
+            ->first();
+
+        $existingTranslationData = $this->translationPayloadWithLegacyFields($existingTranslation);
+        $mergedTranslationData = array_replace_recursive(
+            $existingTranslationData,
+            $validated['data'] ?? [],
+        );
+
+        $schema = $this->resolveSchemaForType($dataset->type);
+        $normalizedCustomData = $this->schemaValidator->validate(
+            $schema,
+            $dataset->config ?? [],
+            $mergedTranslationData,
+        );
 
         $translation = CmsDatasetTranslation::query()->updateOrCreate(
             ['dataset_id' => $dataset->id, 'locale' => $locale],
-            $validated,
+            [
+                'title' => $validated['title'],
+                'data' => $this->mediaNormalizer->normalizeTranslationData($schema, $normalizedCustomData['data']),
+            ],
         );
 
-        return response()->json($this->serializeTranslation($translation->fresh()));
+        return response()->json($this->serializeTranslation($translation->fresh(), $schema));
     }
 
     public function syncCategories(Request $request, CmsDataset $dataset): JsonResponse
@@ -128,20 +218,34 @@ class DatasetController
         return response()->json($dataset->categories);
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     */
     private function serializeDataset(CmsDataset $dataset): array
     {
+        $schema = $dataset->type instanceof CmsDatasetType
+            ? $this->resolveSchemaForType($dataset->type)
+            : null;
+
         return [
             'id' => $dataset->id,
             'type_id' => $dataset->type_id,
-            'type_slug' => $dataset->type?->slug,
+            'type_code' => $dataset->type?->code,
             'slug' => $dataset->slug,
-            'date' => $dataset->date?->toDateString(),
-            'status' => $dataset->status,
+            'visibility_mode' => $dataset->visibility_mode,
+            'visibility_ranges' => $dataset->visibilityRanges
+                ->map(fn ($range) => [
+                    'id' => $range->id,
+                    'starts_at' => $range->starts_at?->toISOString(),
+                    'ends_at' => $range->ends_at?->toISOString(),
+                ])
+                ->all(),
+            'is_visible_now' => $this->visibilityService->isVisibleNow($dataset),
+            'visibility_label' => $this->visibilityService->labelFor($dataset),
             'sort_order' => $dataset->sort_order,
-            'config' => $dataset->config,
+            'config' => $this->mediaNormalizer->resolveConfig($schema, $schema?->extractNonTranslatableData($dataset->config ?? []) ?? ($dataset->config ?? [])),
             'translations' => $dataset->translations
-                ->mapWithKeys(fn (CmsDatasetTranslation $translation) => [$translation->locale => $this->serializeTranslation($translation)])
+                ->mapWithKeys(fn (CmsDatasetTranslation $translation) => [$translation->locale => $this->serializeTranslation($translation, $schema)])
                 ->all(),
             'categories' => $dataset->categories->map(fn ($cat) => [
                 'id' => $cat->id,
@@ -153,121 +257,116 @@ class DatasetController
         ];
     }
 
-    /** @return array<string, mixed>|null */
-    private function normalizeTranslationData(?array $data): ?array
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeTranslation(CmsDatasetTranslation $translation, ?DatasetSchema $schema = null): array
     {
-        if ($data === null) {
-            return null;
-        }
+        $translationData = $this->translationPayloadWithLegacyFields($translation);
+        $resolvedData = $this->mediaNormalizer->resolveTranslationData(
+            $schema,
+            $schema?->extractTranslatableData($translationData) ?? $translationData,
+        );
 
-        if (array_key_exists('image', $data)) {
-            $data['image'] = $this->normalizeMediaReference($data['image']);
-        }
-
-        return $data;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function normalizeMediaReference(mixed $value): ?array
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        if (! is_array($value)) {
-            return null;
-        }
-
-        $mediaItemId = $value['media_item_id'] ?? $value['id'] ?? null;
-
-        if (! is_numeric($mediaItemId)) {
-            return null;
-        }
-
-        return [
-            'media_item_id' => (int) $mediaItemId,
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function serializeTranslation(CmsDatasetTranslation $translation): array
-    {
         return [
             'id' => $translation->id,
             'dataset_id' => $translation->dataset_id,
             'locale' => $translation->locale,
             'title' => $translation->title,
-            'excerpt' => $translation->excerpt,
-            'content' => $translation->content,
-            'data' => $this->resolveTranslationData($translation->data ?? []),
+            'data' => $resolvedData,
             'created_at' => $translation->created_at,
             'updated_at' => $translation->updated_at,
         ];
     }
 
-    /** @param  array<string, mixed>  $data
+    private function resolveSchemaForType(?CmsDatasetType $type): ?DatasetSchema
+    {
+        if (! $type instanceof CmsDatasetType) {
+            return null;
+        }
+
+        return $this->schemaRegistry->find($type->code);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function resolveVisibilityMode(array $validated, ?string $fallback = null): string
+    {
+        $mode = $validated['visibility_mode'] ?? null;
+
+        if (is_string($mode) && in_array($mode, ['disabled', 'always', 'scheduled'], true)) {
+            return $mode;
+        }
+
+        if (array_key_exists('status', $validated)) {
+            return $validated['status'] === 'published' ? 'always' : 'disabled';
+        }
+
+        return $fallback ?? 'disabled';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $ranges
+     */
+    private function syncVisibilityRanges(CmsDataset $dataset, array $ranges): void
+    {
+        $normalizedRanges = $this->visibilityService->normalizeRanges($ranges);
+
+        $dataset->visibilityRanges()->delete();
+
+        foreach ($normalizedRanges as $index => $range) {
+            $dataset->visibilityRanges()->create([
+                'sort_order' => $index,
+                'starts_at' => $range['starts_at'],
+                'ends_at' => $range['ends_at'],
+            ]);
+        }
+    }
+
+    /**
+     * @param  Builder<CmsDataset>  $query
+     */
+    private function applyEditorVisibilityFilter($query, string $visibility): void
+    {
+        match ($visibility) {
+            'visible' => $this->visibilityService->applyVisibleNow($query),
+            'disabled' => $query->where('visibility_mode', 'disabled'),
+            'always' => $query->where('visibility_mode', 'always'),
+            'scheduled' => $query->where('visibility_mode', 'scheduled'),
+            default => null,
+        };
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function resolveTranslationData(array $data): array
+    private function existingTranslationData(CmsDataset $dataset, string $locale): array
     {
-        if (array_key_exists('image', $data)) {
-            $data['image'] = $this->resolveMediaReference($data['image']);
+        $translation = $dataset->translations->firstWhere('locale', $locale);
+
+        return $this->translationPayloadWithLegacyFields($translation);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function translationPayloadWithLegacyFields(?CmsDatasetTranslation $translation): array
+    {
+        if (! $translation instanceof CmsDatasetTranslation) {
+            return [];
+        }
+
+        $data = is_array($translation->data) ? $translation->data : [];
+
+        if ($translation->excerpt !== null && ! array_key_exists('excerpt', $data)) {
+            $data['excerpt'] = $translation->excerpt;
+        }
+
+        if ($translation->content !== null && ! array_key_exists('content', $data)) {
+            $data['content'] = $translation->content;
         }
 
         return $data;
-    }
-
-    /** @return array<string, mixed>|null */
-    private function resolveMediaReference(mixed $value): ?array
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        if (is_array($value) && array_key_exists('path', $value)) {
-            return $value;
-        }
-
-        if (! is_array($value)) {
-            return null;
-        }
-
-        $mediaItemId = $value['media_item_id'] ?? $value['id'] ?? null;
-
-        if (! is_numeric($mediaItemId)) {
-            return null;
-        }
-
-        $mediaItem = CmsMediaItem::query()
-            ->with('translations')
-            ->find((int) $mediaItemId);
-
-        if ($mediaItem === null) {
-            return null;
-        }
-
-        return [
-            'id' => $mediaItem->id,
-            'media_item_id' => $mediaItem->id,
-            'category_id' => $mediaItem->category_id,
-            'disk' => $mediaItem->disk,
-            'path' => $mediaItem->path,
-            'url' => $mediaItem->url(),
-            'webp_url' => $mediaItem->webpUrl(),
-            'filename' => $mediaItem->filename,
-            'mime_type' => $mediaItem->mime_type,
-            'size' => $mediaItem->size,
-            'width' => $mediaItem->width,
-            'height' => $mediaItem->height,
-            'focal_x' => $mediaItem->focal_x,
-            'focal_y' => $mediaItem->focal_y,
-            'translations' => $mediaItem->translations
-                ->mapWithKeys(fn ($translation) => [$translation->locale => [
-                    'alt' => $translation->alt,
-                    'title' => $translation->title,
-                ]])
-                ->all(),
-            'created_at' => $mediaItem->created_at,
-        ];
     }
 }

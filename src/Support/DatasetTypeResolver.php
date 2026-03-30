@@ -26,6 +26,6 @@ class DatasetTypeResolver
             return null;
         }
 
-        return CmsDatasetType::query()->where('slug', $candidate)->first();
+        return CmsDatasetType::query()->where('code', $candidate)->first();
     }
 }

@@ -31,10 +31,6 @@ const props = defineProps({
         type: Number,
         default: null,
     },
-    formatDate: {
-        type: Function,
-        required: true,
-    },
 })
 
 const emit = defineEmits(['retry', 'select', 'delete', 'remove-category'])
@@ -43,8 +39,8 @@ function entryTitle(entry) {
     return entry.translations?.[props.locale]?.title ?? entry.slug
 }
 
-function statusClasses(status) {
-    return status === 'published'
+function visibilityClasses(entry) {
+    return entry?.is_visible_now
         ? 'text-emerald-500'
         : 'text-[var(--bf-ui-muted)]'
 }
@@ -124,12 +120,12 @@ function handleDragEnd() {
                             {{ entryTitle(entry) }}
                         </p>
                         <p class="mt-0.5 text-[11px] text-[var(--bf-ui-muted)]">
-                            {{ formatDate(entry.date) }}
+                            {{ entry.slug }}
                             <span
                                 class="ml-1.5"
-                                :class="statusClasses(entry.status)"
+                                :class="visibilityClasses(entry)"
                             >
-                                {{ entry.status }}
+                                {{ entry.visibility_label ?? (entry.is_visible_now ? 'Visible now' : 'Not visible') }}
                             </span>
                         </p>
 
