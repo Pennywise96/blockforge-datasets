@@ -4,6 +4,7 @@ namespace Blockforge\Datasets\Elements;
 
 use Blockforge\Cms\Elements\MediaItemObject;
 use Blockforge\Cms\Models\CmsMediaItem;
+use Illuminate\Support\Carbon;
 
 /**
  * Lightweight value object wrapping a CmsDataset entry with its resolved translation.
@@ -92,6 +93,21 @@ class DatasetObject
         }
 
         return false;
+    }
+
+    public function date(): ?Carbon
+    {
+        $value = $this->fields['date']
+            ?? $this->data['date']
+            ?? $this->config['date']
+            ?? $this->config['_legacy_date']
+            ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return Carbon::parse($value);
     }
 
     /**
