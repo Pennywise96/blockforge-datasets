@@ -5,9 +5,9 @@ namespace Blockforge\Datasets\ViewHelpers;
 use Blockforge\Cms\ViewHelpers\ViewHelper;
 use Blockforge\Datasets\Elements\DatasetObject;
 use Blockforge\Datasets\Models\CmsDataset;
+use Blockforge\Datasets\Support\DatasetArchiveQueryFactory;
 use Blockforge\Datasets\Support\DatasetDetailPageService;
 use Blockforge\Datasets\Support\DatasetTypeResolver;
-use Illuminate\Database\Eloquent\Builder;
 
 class DatasetItemsViewHelper extends ViewHelper
 {
@@ -97,29 +97,13 @@ class DatasetItemsViewHelper extends ViewHelper
         $category ??= $filters['category'];
         $search ??= $filters['search'];
         $pageNumber ??= $filters['page'];
+        $limit ??= $this->resolveContextLimit();
 
         $detailBase ??= app(DatasetDetailPageService::class)->detailBaseForType($typeModel);
 
-        $query = CmsDataset::query()
-            ->where('type_id', $typeModel->id)
-            ->where('status', $status)
+        $query = app(DatasetArchiveQueryFactory::class)
+            ->make($typeModel, $category, $search, $status)
             ->with(['translations', 'categories']);
-
-        if ($category !== null) {
-            $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
-        }
-
-        if ($search !== null) {
-            $searchTerm = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
-
-            $query->whereHas('translations', function (Builder $translationQuery) use ($searchTerm): void {
-                $translationQuery->where(function (Builder $textQuery) use ($searchTerm): void {
-                    $textQuery->where('title', 'like', $searchTerm)
-                        ->orWhere('excerpt', 'like', $searchTerm)
-                        ->orWhere('content', 'like', $searchTerm);
-                });
-            });
-        }
 
         $allowedOrderColumns = ['date', 'sort_order', 'created_at'];
         $orderColumn = in_array($orderBy, $allowedOrderColumns, true) ? $orderBy : 'date';
@@ -164,5 +148,18 @@ class DatasetItemsViewHelper extends ViewHelper
                 detailBase: $detailBase,
             );
         })->all();
+    }
+
+    private function resolveContextLimit(): ?int
+    {
+        if (! app()->bound('cms.dataset_limit')) {
+            return null;
+        }
+
+        $limit = app('cms.dataset_limit');
+
+        return is_numeric($limit) && (int) $limit > 0
+            ? (int) $limit
+            : null;
     }
 }

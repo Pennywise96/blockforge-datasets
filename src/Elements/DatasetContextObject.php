@@ -12,6 +12,8 @@ class DatasetContextObject
         private ?string $currentCategory = null,
         private int $currentPage = 1,
         private ?string $currentSearch = null,
+        private ?int $currentLimit = null,
+        private ?int $totalItems = null,
     ) {}
 
     public function type(): string
@@ -42,6 +44,66 @@ class DatasetContextObject
     public function page(): int
     {
         return $this->currentPage;
+    }
+
+    public function limit(): ?int
+    {
+        return $this->currentLimit;
+    }
+
+    public function totalItems(): ?int
+    {
+        return $this->totalItems;
+    }
+
+    public function totalPages(): ?int
+    {
+        if ($this->currentLimit === null || $this->currentLimit < 1 || $this->totalItems === null) {
+            return null;
+        }
+
+        return max(1, (int) ceil($this->totalItems / $this->currentLimit));
+    }
+
+    public function hasPagination(): bool
+    {
+        return $this->totalPages() !== null;
+    }
+
+    public function hasPreviousPage(): bool
+    {
+        return $this->currentPage > 1;
+    }
+
+    public function hasNextPage(): bool
+    {
+        $totalPages = $this->totalPages();
+
+        return $totalPages !== null && $this->currentPage < $totalPages;
+    }
+
+    public function previousPage(): ?int
+    {
+        return $this->hasPreviousPage() ? $this->currentPage - 1 : null;
+    }
+
+    public function nextPage(): ?int
+    {
+        return $this->hasNextPage() ? $this->currentPage + 1 : null;
+    }
+
+    public function previousPageUrl(): ?string
+    {
+        $page = $this->previousPage();
+
+        return $page !== null ? $this->url(page: $page) : null;
+    }
+
+    public function nextPageUrl(): ?string
+    {
+        $page = $this->nextPage();
+
+        return $page !== null ? $this->url(page: $page) : null;
     }
 
     public function hasFilters(): bool

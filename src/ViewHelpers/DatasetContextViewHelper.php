@@ -6,12 +6,13 @@ use Blockforge\Cms\Models\CmsPage;
 use Blockforge\Cms\ViewHelpers\ViewHelper;
 use Blockforge\Datasets\Elements\DatasetContextObject;
 use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Support\DatasetArchiveQueryFactory;
 use Blockforge\Datasets\Support\DatasetDetailPageService;
 use Blockforge\Datasets\Support\DatasetTypeResolver;
 
 class DatasetContextViewHelper extends ViewHelper
 {
-    public function render(mixed $type = null, string $as = 'dataset'): string
+    public function render(mixed $type = null, string $as = 'dataset', ?int $limit = null, string $status = 'published'): string
     {
         $typeModel = $this->resolveType($type);
 
@@ -19,12 +20,18 @@ class DatasetContextViewHelper extends ViewHelper
             return '';
         }
 
+        $currentCategory = $this->resolveCurrentCategory();
+        $currentPage = $this->resolveCurrentPage();
+        $currentSearch = $this->resolveCurrentSearch();
+
         $context = new DatasetContextObject(
             type: $typeModel->slug,
             listUrl: app(DatasetDetailPageService::class)->detailBaseForType($typeModel),
-            currentCategory: $this->resolveCurrentCategory(),
-            currentPage: $this->resolveCurrentPage(),
-            currentSearch: $this->resolveCurrentSearch(),
+            currentCategory: $currentCategory,
+            currentPage: $currentPage,
+            currentSearch: $currentSearch,
+            currentLimit: $limit,
+            totalItems: $this->resolveTotalItems($typeModel, $limit, $currentCategory, $currentSearch, $status),
         );
 
         $archivePage = $this->resolveArchivePage();
@@ -33,6 +40,7 @@ class DatasetContextViewHelper extends ViewHelper
             [
                 'cms.dataset_type' => $typeModel,
                 'cms.dataset_list_page' => $archivePage,
+                'cms.dataset_limit' => $limit,
             ],
             fn () => $this->renderChildren([
                 'dataset' => $context,
@@ -115,6 +123,22 @@ class DatasetContextViewHelper extends ViewHelper
         return is_string($search) && trim($search) !== ''
             ? trim($search)
             : null;
+    }
+
+    private function resolveTotalItems(
+        CmsDatasetType $type,
+        ?int $limit,
+        ?string $category,
+        ?string $search,
+        string $status,
+    ): ?int {
+        if ($limit === null || $limit < 1) {
+            return null;
+        }
+
+        return app(DatasetArchiveQueryFactory::class)
+            ->make($type, $category, $search, $status)
+            ->count();
     }
 
     /** @return string[] */

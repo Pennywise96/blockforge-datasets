@@ -148,6 +148,71 @@ test('resolves a dataset context object from the current archive page without an
         ->and($captured['dataset']->search())->toBe('');
 });
 
+test('exposes pagination metadata and nested items inherit the context limit', function (): void {
+    $site = makeContextTestSite();
+    $locale = makeContextLocale($site);
+    $type = makeContextType('blog');
+    $archivePage = makeContextPage($site, ['slug' => 'blog']);
+    $detailPage = makeContextPage($site, [
+        'slug' => 'blog/detail',
+        'parent_id' => $archivePage->id,
+        'nav_hidden' => true,
+    ]);
+
+    CmsDatasetDetailPage::query()->create([
+        'site_id' => $site->id,
+        'page_id' => $detailPage->id,
+        'dataset_type_id' => $type->id,
+    ]);
+
+    makeContextEntry($type, 'post-1', 'Post 1');
+    makeContextEntry($type, 'post-2', 'Post 2');
+    makeContextEntry($type, 'post-3', 'Post 3');
+
+    bindContextRuntime($site, $locale, $archivePage, '/blog/page/2');
+    app()->instance('cms.dataset_filters', ['page' => 2]);
+
+    $nested = [
+        'dataset' => null,
+        'items' => [],
+    ];
+
+    executeContextViewHelper(
+        ['as' => 'dataset', 'limit' => 2],
+        function (array $vars) use (&$nested): void {
+            $nested['dataset'] = $vars['dataset'];
+
+            app(DatasetItemsViewHelper::class)->execute(
+                [
+                    'as' => 'post',
+                    'orderBy' => 'created_at',
+                    'direction' => 'asc',
+                ],
+                function (array $vars) use (&$nested): string {
+                    $nested['items'][] = $vars['post'];
+
+                    return '';
+                }
+            );
+        }
+    );
+
+    expect($nested['dataset'])->toBeInstanceOf(DatasetContextObject::class)
+        ->and($nested['dataset']->limit())->toBe(2)
+        ->and($nested['dataset']->totalItems())->toBe(3)
+        ->and($nested['dataset']->totalPages())->toBe(2)
+        ->and($nested['dataset']->hasPagination())->toBeTrue()
+        ->and($nested['dataset']->hasPreviousPage())->toBeTrue()
+        ->and($nested['dataset']->hasNextPage())->toBeFalse()
+        ->and($nested['dataset']->previousPage())->toBe(1)
+        ->and($nested['dataset']->nextPage())->toBeNull()
+        ->and($nested['dataset']->previousPageUrl())->toBe('/blog')
+        ->and($nested['dataset']->nextPageUrl())->toBeNull()
+        ->and($nested['items'])->toHaveCount(1)
+        ->and($nested['items'][0])->toBeInstanceOf(DatasetObject::class)
+        ->and($nested['items'][0]->slug)->toBe('post-3');
+});
+
 test('builds archive urls from current filter state', function (): void {
     $site = makeContextTestSite();
     $locale = makeContextLocale($site);
