@@ -16,6 +16,7 @@ import {
     fetchDatasetTypes,
     syncDatasetCategories,
     updateDatasetCategory,
+    updateDatasetType,
     updateDataset,
     updateDatasetTranslation,
 } from '../utils/datasetApi'
@@ -119,7 +120,8 @@ export const useDatasetsStore = defineStore('datasets', () => {
     const createEntryForm = ref(createEmptyEntryForm())
     const isSavingEntry = ref(false)
     const isCreatingType = ref(false)
-    const createTypeForm = ref(createEmptyTypeForm())
+    const editingTypeId = ref(null)
+    const typeForm = ref(createEmptyTypeForm())
     const isSavingType = ref(false)
     const editingCategoryId = ref(null)
     const editingCategory = computed(() =>
@@ -135,6 +137,11 @@ export const useDatasetsStore = defineStore('datasets', () => {
     const selectedType = computed(() =>
         types.value.find((type) => type.id === selectedTypeId.value) ?? null,
     )
+    const editingType = computed(() =>
+        types.value.find((type) => type.id === editingTypeId.value) ?? null,
+    )
+    const isEditingType = computed(() => editingTypeId.value !== null)
+    const isTypeFormOpen = computed(() => isCreatingType.value || isEditingType.value)
     const selectedTypeFields = computed(() => selectedType.value?.schema?.fields ?? [])
     const categoryTree = computed(() => buildCategoryTree(categories.value))
     const selectedEntry = computed(() =>
@@ -501,36 +508,70 @@ export const useDatasetsStore = defineStore('datasets', () => {
     }
 
     function openCreateType() {
+        editingTypeId.value = null
         isCreatingType.value = true
-        createTypeForm.value = createEmptyTypeForm()
+        typeForm.value = createEmptyTypeForm()
     }
 
     function cancelCreateType() {
         isCreatingType.value = false
-        createTypeForm.value = createEmptyTypeForm()
+        typeForm.value = createEmptyTypeForm()
     }
 
-    function syncCreateTypeCode() {
-        createTypeForm.value.code = slugify(createTypeForm.value.name)
+    function openEditType(type) {
+        isCreatingType.value = false
+        editingTypeId.value = type?.id ?? null
+        typeForm.value = {
+            name: type?.name ?? '',
+            code: type?.code ?? '',
+            description: type?.description ?? '',
+        }
     }
 
-    async function submitCreateType() {
-        if (!createTypeForm.value.name.trim() || !createTypeForm.value.code.trim()) {
+    function cancelEditType() {
+        editingTypeId.value = null
+        typeForm.value = createEmptyTypeForm()
+    }
+
+    function closeTypeForm() {
+        cancelCreateType()
+        cancelEditType()
+    }
+
+    function syncTypeCode() {
+        typeForm.value.code = slugify(typeForm.value.name)
+    }
+
+    async function submitTypeForm() {
+        if (!typeForm.value.name.trim() || !typeForm.value.code.trim()) {
             return
         }
 
         isSavingType.value = true
 
         try {
-            const newType = await createDatasetType({
-                name: createTypeForm.value.name,
-                code: createTypeForm.value.code,
-                description: createTypeForm.value.description || null,
-            })
+            let savedType = null
+
+            if (isEditingType.value && editingType.value) {
+                savedType = await updateDatasetType(editingType.value.id, {
+                    name: typeForm.value.name,
+                    code: typeForm.value.code,
+                    description: typeForm.value.description || null,
+                })
+            } else {
+                savedType = await createDatasetType({
+                    name: typeForm.value.name,
+                    code: typeForm.value.code,
+                    description: typeForm.value.description || null,
+                })
+            }
 
             await loadTypes()
-            cancelCreateType()
-            await selectType(newType)
+            closeTypeForm()
+
+            if (savedType) {
+                await selectType(savedType)
+            }
         } finally {
             isSavingType.value = false
         }
@@ -694,7 +735,10 @@ export const useDatasetsStore = defineStore('datasets', () => {
         createEntryForm,
         isSavingEntry,
         isCreatingType,
-        createTypeForm,
+        isEditingType,
+        isTypeFormOpen,
+        editingType,
+        typeForm,
         isSavingType,
         editingCategory,
         isCreatingCategory,
@@ -721,8 +765,11 @@ export const useDatasetsStore = defineStore('datasets', () => {
         removeEntryCategory,
         openCreateType,
         cancelCreateType,
-        syncCreateTypeCode,
-        submitCreateType,
+        openEditType,
+        cancelEditType,
+        closeTypeForm,
+        syncTypeCode,
+        submitTypeForm,
         deleteTypeById,
         openCreateCategory,
         cancelCreateCategory,

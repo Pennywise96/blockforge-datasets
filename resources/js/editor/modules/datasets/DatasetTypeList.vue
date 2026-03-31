@@ -20,24 +20,24 @@ async function deleteType(type) {
             <div class="flex items-center gap-1">
                 <Transition name="header-back">
                     <BfButton
-                        v-if="datasetsStore.isCreatingType"
+                        v-if="datasetsStore.isTypeFormOpen"
                         variant="ghost"
                         size="icon-sm"
                         rounded="md"
                         class="shrink-0"
                         title="Back to types"
-                        @click="datasetsStore.cancelCreateType()"
+                        @click="datasetsStore.closeTypeForm()"
                     >
                         <BfIcon name="back" class="h-3.5 w-3.5" />
                     </BfButton>
                 </Transition>
 
                 <span class="flex-1 truncate text-xs font-medium text-[var(--bf-ui-muted)]">
-                    {{ datasetsStore.isCreatingType ? 'New type' : 'Types' }}
+                    {{ datasetsStore.isEditingType ? 'Edit type' : (datasetsStore.isCreatingType ? 'New type' : 'Types') }}
                 </span>
 
                 <BfButton
-                    v-if="!datasetsStore.isCreatingType"
+                    v-if="!datasetsStore.isTypeFormOpen"
                     variant="ghost"
                     size="icon-sm"
                     rounded="md"
@@ -51,7 +51,7 @@ async function deleteType(type) {
 
         <ModuleBody class="relative overflow-hidden">
             <Transition name="drill-back">
-                <div v-if="!datasetsStore.isCreatingType" class="absolute inset-0 flex flex-col">
+                <div v-if="!datasetsStore.isTypeFormOpen" class="absolute inset-0 flex flex-col">
                     <ModuleScrollArea class="py-1">
                         <div
                             v-if="datasetsStore.isLoadingTypes"
@@ -104,6 +104,15 @@ async function deleteType(type) {
                                     variant="ghost"
                                     size="icon-sm"
                                     class="opacity-0 group-hover:opacity-100"
+                                    title="Edit type"
+                                    @click.stop="datasetsStore.openEditType(type)"
+                                >
+                                    <BfIcon name="edit" class="w-3 h-3" />
+                                </BfButton>
+                                <BfButton
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    class="opacity-0 group-hover:opacity-100"
                                     title="Delete type"
                                     @click.stop="deleteType(type)"
                                 >
@@ -132,11 +141,13 @@ async function deleteType(type) {
 
             <Transition name="drill-forward">
                 <DatasetTypeFormPane
-                    v-if="datasetsStore.isCreatingType"
-                    :form="datasetsStore.createTypeForm"
+                    v-if="datasetsStore.isTypeFormOpen"
+                    :mode="datasetsStore.isEditingType ? 'edit' : 'create'"
+                    :form="datasetsStore.typeForm"
                     :is-saving="datasetsStore.isSavingType"
-                    @sync-code="datasetsStore.syncCreateTypeCode"
-                    @save="datasetsStore.submitCreateType"
+                    :has-schema="datasetsStore.editingType?.schema_status === 'available'"
+                    @sync-code="datasetsStore.syncTypeCode"
+                    @save="datasetsStore.submitTypeForm"
                 />
             </Transition>
         </ModuleBody>

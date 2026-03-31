@@ -2,11 +2,19 @@
 import { BfButton, BfField, BfInput, BfTextarea, ModuleFooterBar, ModuleInfoCard, ModuleScrollArea } from '@blockforge-cms/editor-sdk'
 
 defineProps({
+    mode: {
+        type: String,
+        default: 'create',
+    },
     form: {
         type: Object,
         required: true,
     },
     isSaving: {
+        type: Boolean,
+        default: false,
+    },
+    hasSchema: {
         type: Boolean,
         default: false,
     },
@@ -19,8 +27,24 @@ const emit = defineEmits(['save', 'sync-code'])
     <div class="absolute inset-0 flex flex-col">
         <ModuleScrollArea>
             <div class="flex flex-col gap-4 px-3 py-3">
-                <ModuleInfoCard label="New type" value-class="mt-1 text-xs leading-relaxed text-[var(--bf-ui-text)]">
-                    Create a dataset type with a stable code. Optional schema files can extend the type with custom fields later.
+                <ModuleInfoCard
+                    :label="mode === 'edit' ? 'Edit type' : 'New type'"
+                    value-class="mt-1 text-xs leading-relaxed text-[var(--bf-ui-text)]"
+                >
+                    <template v-if="mode === 'edit'">
+                        Update the editorial metadata for this dataset type. The code should stay stable because schema files are bound to it.
+                    </template>
+                    <template v-else>
+                        Create a dataset type with a stable code. Optional schema files can extend the type with custom fields later.
+                    </template>
+                </ModuleInfoCard>
+
+                <ModuleInfoCard
+                    v-if="mode === 'edit' && hasSchema"
+                    label="Schema binding"
+                    value-class="mt-1 text-xs leading-relaxed text-[var(--bf-ui-text)]"
+                >
+                    This type already has a registered schema. Changing the code also requires updating the matching <code>DatasetSchema::make(...)</code> definition.
                 </ModuleInfoCard>
 
                 <BfField label="Name" required>
@@ -72,7 +96,7 @@ const emit = defineEmits(['save', 'sync-code'])
                 :disabled="isSaving"
                 @click="emit('save')"
             >
-                {{ isSaving ? 'Creating…' : 'Create type' }}
+                {{ isSaving ? (mode === 'edit' ? 'Saving…' : 'Creating…') : (mode === 'edit' ? 'Save type' : 'Create type') }}
             </BfButton>
         </ModuleFooterBar>
     </div>

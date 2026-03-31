@@ -23,7 +23,9 @@ it('registers the dataset module from the package editor entry and imports share
 
     expect($datasetTypeList)->toContain('BfEmptyState')
         ->toContain('Create first type')
-        ->toContain('Could not load dataset types');
+        ->toContain('Could not load dataset types')
+        ->toContain('Edit type')
+        ->toContain('datasetsStore.openEditType(type)');
 
     expect($datasetEntriesPane)->toContain('Could not load entries')
         ->toContain("defineEmits(['retry', 'select', 'delete', 'remove-category'])");
@@ -32,10 +34,14 @@ it('registers the dataset module from the package editor entry and imports share
         ->toContain("import { usePageContextStore } from '@blockforge-cms/editor-sdk'")
         ->toContain("const typesError = ref('')")
         ->toContain("const entriesError = ref('')")
-        ->toContain('selectedTypeId.value === null && types.value.length > 0');
+        ->toContain('selectedTypeId.value === null && types.value.length > 0')
+        ->toContain('const editingTypeId = ref(null)')
+        ->toContain('function openEditType(type)')
+        ->toContain('async function submitTypeForm()');
 
     expect($datasetApi)->toContain("from '@blockforge-cms/editor-sdk'")
-        ->toContain('export async function fetchDatasetTypes');
+        ->toContain('export async function fetchDatasetTypes')
+        ->toContain('export async function updateDatasetType(typeId, payload)');
 
     expect($editorCss)->toContain("@import 'tailwindcss/utilities';")
         ->toContain("@source '../js/**/*.js';")

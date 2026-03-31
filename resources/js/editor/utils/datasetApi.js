@@ -24,6 +24,14 @@ export async function createDatasetType(payload) {
     })
 }
 
+export async function updateDatasetType(typeId, payload) {
+    return await requestJson(`/api/cms/datasets/types/${typeId}`, {
+        method: 'PUT',
+        headers: jsonHeaders(),
+        body: JSON.stringify(payload),
+    })
+}
+
 export async function deleteDatasetType(typeId) {
     await request(`/api/cms/datasets/types/${typeId}`, {
         method: 'DELETE',
