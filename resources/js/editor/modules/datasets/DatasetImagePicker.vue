@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { BfButton, BfField, BfSelect, fetchMediaCategories, fetchMediaItems, mediaFileUrl, ModuleCollectionItem } from '@blockforge-cms/editor-sdk'
 
 const props = defineProps({
@@ -24,6 +24,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const pickerOpen = ref(false)
+const pickerPanel = ref(null)
 const mediaItems = ref([])
 const mediaCategories = ref([])
 const selectedCategoryId = ref(null)
@@ -114,16 +115,18 @@ async function loadCategories() {
     }
 }
 
-async function togglePicker() {
+async function openPicker() {
     if (props.disabled) {
         return
     }
 
-    pickerOpen.value = !pickerOpen.value
-
-    if (!pickerOpen.value) {
+    if (pickerOpen.value) {
         return
     }
+
+    pickerOpen.value = true
+    await nextTick()
+    pickerPanel.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
 
     if (mediaCategories.value.length === 0) {
         await loadCategories()
@@ -132,6 +135,10 @@ async function togglePicker() {
     if (mediaItems.value.length === 0) {
         await loadMedia()
     }
+}
+
+function closePicker() {
+    pickerOpen.value = false
 }
 
 function pickImage(item) {
@@ -147,7 +154,7 @@ function pickImage(item) {
     }
 
     emit('update:modelValue', item ? { ...item } : null)
-    pickerOpen.value = false
+    closePicker()
 }
 
 function clearImage(index = null) {
@@ -217,7 +224,7 @@ watch(selectedCategoryId, async () => {
                             size="sm"
                             rounded="lg"
                             :disabled="disabled"
-                            @click="togglePicker"
+                            @click.stop.prevent="openPicker"
                         >
                             {{ pickerButtonLabel }}
                         </BfButton>
@@ -265,7 +272,7 @@ watch(selectedCategoryId, async () => {
                         size="sm"
                         rounded="lg"
                         :disabled="disabled"
-                        @click="togglePicker"
+                        @click.stop.prevent="openPicker"
                     >
                         {{ pickerButtonLabel }}
                     </BfButton>
@@ -297,7 +304,7 @@ watch(selectedCategoryId, async () => {
                     rounded="lg"
                     class="self-start"
                     :disabled="disabled"
-                    @click="togglePicker"
+                    @click.stop.prevent="openPicker"
                 >
                     {{ multiple ? 'Pick images' : 'Pick image' }}
                 </BfButton>
@@ -306,6 +313,7 @@ watch(selectedCategoryId, async () => {
 
         <div
             v-if="pickerOpen"
+            ref="pickerPanel"
             class="overflow-hidden rounded-2xl border border-[var(--bf-ui-border)] bg-[var(--bf-ui-panel-soft)]"
         >
             <div class="flex flex-col gap-3 border-b border-[var(--bf-ui-border)] px-3 py-3">
@@ -324,7 +332,7 @@ watch(selectedCategoryId, async () => {
                         size="sm"
                         rounded="lg"
                         :disabled="disabled"
-                        @click="togglePicker"
+                        @click.stop.prevent="closePicker"
                     >
                         {{ multiple ? 'Done' : 'Close' }}
                     </BfButton>

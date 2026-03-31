@@ -7,6 +7,7 @@ it('registers the dataset module from the package editor entry and imports share
     $datasetTypeList = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/modules/datasets/DatasetTypeList.vue');
     $datasetDetailPane = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/modules/datasets/DatasetEntryDetailPane.vue');
     $datasetEntriesPane = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/modules/datasets/DatasetEntriesPane.vue');
+    $datasetImagePicker = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/modules/datasets/DatasetImagePicker.vue');
     $datasetStore = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/stores/datasets.js');
     $datasetApi = file_get_contents(dirname(__DIR__, 2).'/resources/js/editor/utils/datasetApi.js');
     $viteConfig = file_get_contents(dirname(__DIR__, 2).'/vite.config.js');
@@ -29,6 +30,10 @@ it('registers the dataset module from the package editor entry and imports share
 
     expect($datasetEntriesPane)->toContain('Could not load entries')
         ->toContain("defineEmits(['retry', 'select', 'delete', 'remove-category'])");
+
+    expect($datasetImagePicker)->toContain('function openPicker()')
+        ->toContain('scrollIntoView')
+        ->toContain('@click.stop.prevent="openPicker"');
 
     expect($datasetStore)->toContain("export const useDatasetsStore = defineStore('datasets'")
         ->toContain("import { usePageContextStore } from '@blockforge-cms/editor-sdk'")
