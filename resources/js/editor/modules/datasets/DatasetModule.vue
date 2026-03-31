@@ -13,6 +13,13 @@ const datasetsStore = useDatasetsStore()
 const selectedTypeLabel = computed(() =>
     datasetsStore.selectedType ? datasetsStore.selectedType.name : 'Datasets',
 )
+const selectedCategoryLabel = computed(() => {
+    if (!datasetsStore.selectedCategorySlug) {
+        return ''
+    }
+
+    return datasetsStore.categories.find((category) => category.slug === datasetsStore.selectedCategorySlug)?.name ?? ''
+})
 const isEditingEntry = computed(() => Boolean(datasetsStore.selectedEntry))
 const isCreatingEntry = computed(() => datasetsStore.isCreatingEntry)
 const isEntryPanelOpen = computed(() => isEditingEntry.value || isCreatingEntry.value)
@@ -100,6 +107,12 @@ onMounted(async () => {
                                 {{ datasetsStore.pagination.total }}
                             </span>
                         </div>
+                        <p
+                            v-if="!isEntryPanelOpen && datasetsStore.selectedType"
+                            class="mt-0.5 truncate text-[11px] text-[var(--bf-ui-muted)]"
+                        >
+                            {{ selectedCategoryLabel || 'All categories' }} / {{ datasetsStore.visibilityLabel }}
+                        </p>
                     </div>
 
                     <BfSelect
@@ -136,6 +149,10 @@ onMounted(async () => {
                         :is-loading="datasetsStore.isLoadingEntries"
                         :error="datasetsStore.entriesError"
                         :locale="datasetsStore.locale"
+                        :selected-type-name="selectedTypeLabel"
+                        :selected-category-name="selectedCategoryLabel"
+                        :visibility-label="datasetsStore.visibilityLabel"
+                        :total-entries="datasetsStore.pagination?.total ?? datasetsStore.entries.length"
                         :selected-entry-id="datasetsStore.selectedEntryId"
                         @retry="datasetsStore.loadEntries()"
                         @select="openEntry"
