@@ -27,31 +27,31 @@ it('falls back to default values for missing fixed fields', function (): void {
         ->and($obj->content)->toBeNull();
 });
 
-it('exposes translatable extra data fields via magic access', function (): void {
+it('exposes translatable extra field values via magic access', function (): void {
     $obj = new DatasetObject(
-        data: ['subtitle' => 'Sub', 'duration' => '45 min'],
+        translatedFieldValues: ['subtitle' => 'Sub', 'duration' => '45 min'],
     );
 
     expect($obj->subtitle)->toBe('Sub')
         ->and($obj->duration)->toBe('45 min');
 });
 
-it('exposes non-translatable config fields via magic access', function (): void {
+it('exposes non-translatable field values via magic access', function (): void {
     $obj = new DatasetObject(
-        config: ['price' => 99, 'featured' => true],
+        fieldValues: ['price' => 99, 'featured' => true],
     );
 
     expect($obj->price)->toBe(99)
         ->and($obj->featured)->toBeTrue();
 });
 
-it('data fields take priority over config fields', function (): void {
+it('translated field values take priority over non-translatable field values', function (): void {
     $obj = new DatasetObject(
-        config: ['key' => 'from-config'],
-        data: ['key' => 'from-data'],
+        fieldValues: ['key' => 'from-field-values'],
+        translatedFieldValues: ['key' => 'from-translated-field-values'],
     );
 
-    expect($obj->key)->toBe('from-data');
+    expect($obj->key)->toBe('from-translated-field-values');
 });
 
 it('returns null for unknown properties', function (): void {
@@ -63,8 +63,8 @@ it('returns null for unknown properties', function (): void {
 it('isset returns true for defined fields', function (): void {
     $obj = new DatasetObject(
         fields: ['title' => 'Test'],
-        data: ['subtitle' => 'Sub'],
-        config: ['price' => 10],
+        translatedFieldValues: ['subtitle' => 'Sub'],
+        fieldValues: ['price' => 10],
     );
 
     expect(isset($obj->title))->toBeTrue()
@@ -75,7 +75,7 @@ it('isset returns true for defined fields', function (): void {
 
 it('get() retrieves extra field with default fallback', function (): void {
     $obj = new DatasetObject(
-        data: ['color' => 'blue'],
+        translatedFieldValues: ['color' => 'blue'],
     );
 
     expect($obj->get('color'))->toBe('blue')
@@ -86,7 +86,7 @@ it('resolves dataset image arrays to media item objects', function (): void {
     app()->instance('cms.locale', 'en');
 
     $obj = new DatasetObject(
-        data: [
+        translatedFieldValues: [
             'image' => [
                 'id' => 7,
                 'disk' => 'public',
@@ -145,7 +145,7 @@ it('date() returns null when no date-like value exists', function (): void {
 
 it('date() falls back to the legacy stored dataset date', function (): void {
     $obj = new DatasetObject(
-        config: ['_legacy_date' => '2026-01-15'],
+        fieldValues: ['_legacy_date' => '2026-01-15'],
     );
 
     $date = $obj->date();

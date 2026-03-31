@@ -63,14 +63,14 @@ class DatasetController
             'visibility_ranges.*.starts_at' => ['nullable', 'date'],
             'visibility_ranges.*.ends_at' => ['nullable', 'date'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
-            'config' => ['nullable', 'array'],
+            'field_values' => ['nullable', 'array'],
         ]);
 
         $datasetType = CmsDatasetType::query()->findOrFail($validated['type_id']);
         $schema = $this->resolveSchemaForType($datasetType);
         $normalizedCustomData = $this->schemaValidator->validate(
             $schema,
-            $validated['config'] ?? [],
+            $validated['field_values'] ?? [],
             [],
         );
 
@@ -79,7 +79,7 @@ class DatasetController
             'slug' => $validated['slug'],
             'visibility_mode' => $this->resolveVisibilityMode($validated),
             'sort_order' => $validated['sort_order'] ?? 0,
-            'config' => $this->mediaNormalizer->normalizeConfig($schema, $normalizedCustomData['config']),
+            'field_values' => $this->mediaNormalizer->normalizeFieldValues($schema, $normalizedCustomData['field_values']),
         ]);
 
         $this->syncVisibilityRanges(
@@ -110,20 +110,20 @@ class DatasetController
             'visibility_ranges.*.starts_at' => ['nullable', 'date'],
             'visibility_ranges.*.ends_at' => ['nullable', 'date'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
-            'config' => ['nullable', 'array'],
+            'field_values' => ['nullable', 'array'],
         ]);
 
         $dataset->loadMissing('type', 'translations');
         $schema = $this->resolveSchemaForType($dataset->type);
         $activeLocale = app()->bound('cms.locale') ? app('cms.locale') : app()->getLocale();
         $existingTranslationData = $this->existingTranslationData($dataset, $activeLocale);
-        $nextConfig = array_key_exists('config', $validated)
-            ? array_replace_recursive($dataset->config ?? [], $validated['config'] ?? [])
-            : ($dataset->config ?? []);
+        $nextFieldValues = array_key_exists('field_values', $validated)
+            ? array_replace_recursive($dataset->field_values ?? [], $validated['field_values'] ?? [])
+            : ($dataset->field_values ?? []);
 
         $normalizedCustomData = $this->schemaValidator->validate(
             $schema,
-            $nextConfig,
+            $nextFieldValues,
             $existingTranslationData,
         );
 
@@ -131,7 +131,7 @@ class DatasetController
             'slug' => $validated['slug'] ?? $dataset->slug,
             'visibility_mode' => $this->resolveVisibilityMode($validated, $dataset->visibility_mode),
             'sort_order' => $validated['sort_order'] ?? $dataset->sort_order,
-            'config' => $this->mediaNormalizer->normalizeConfig($schema, $normalizedCustomData['config']),
+            'field_values' => $this->mediaNormalizer->normalizeFieldValues($schema, $normalizedCustomData['field_values']),
         ]);
 
         if (array_key_exists('visibility_ranges', $validated) || $dataset->visibility_mode !== 'scheduled') {
@@ -159,7 +159,7 @@ class DatasetController
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'data' => ['nullable', 'array'],
+            'field_values' => ['nullable', 'array'],
         ]);
 
         $dataset->loadMissing('type');
@@ -172,13 +172,13 @@ class DatasetController
         $existingTranslationData = $this->translationPayloadWithLegacyFields($existingTranslation);
         $mergedTranslationData = array_replace_recursive(
             $existingTranslationData,
-            $validated['data'] ?? [],
+            $validated['field_values'] ?? [],
         );
 
         $schema = $this->resolveSchemaForType($dataset->type);
         $normalizedCustomData = $this->schemaValidator->validate(
             $schema,
-            $dataset->config ?? [],
+            $dataset->field_values ?? [],
             $mergedTranslationData,
         );
 
@@ -186,7 +186,7 @@ class DatasetController
             ['dataset_id' => $dataset->id, 'locale' => $locale],
             [
                 'title' => $validated['title'],
-                'data' => $this->mediaNormalizer->normalizeTranslationData($schema, $normalizedCustomData['data']),
+                'field_values' => $this->mediaNormalizer->normalizeTranslatedFieldValues($schema, $normalizedCustomData['translated_field_values']),
             ],
         );
 
@@ -243,7 +243,7 @@ class DatasetController
             'is_visible_now' => $this->visibilityService->isVisibleNow($dataset),
             'visibility_label' => $this->visibilityService->labelFor($dataset),
             'sort_order' => $dataset->sort_order,
-            'config' => $this->mediaNormalizer->resolveConfig($schema, $schema?->extractNonTranslatableData($dataset->config ?? []) ?? ($dataset->config ?? [])),
+            'field_values' => $this->mediaNormalizer->resolveFieldValues($schema, $schema?->extractNonTranslatableData($dataset->field_values ?? []) ?? ($dataset->field_values ?? [])),
             'translations' => $dataset->translations
                 ->mapWithKeys(fn (CmsDatasetTranslation $translation) => [$translation->locale => $this->serializeTranslation($translation, $schema)])
                 ->all(),
@@ -263,7 +263,7 @@ class DatasetController
     private function serializeTranslation(CmsDatasetTranslation $translation, ?DatasetSchema $schema = null): array
     {
         $translationData = $this->translationPayloadWithLegacyFields($translation);
-        $resolvedData = $this->mediaNormalizer->resolveTranslationData(
+        $resolvedData = $this->mediaNormalizer->resolveTranslatedFieldValues(
             $schema,
             $schema?->extractTranslatableData($translationData) ?? $translationData,
         );
@@ -273,7 +273,7 @@ class DatasetController
             'dataset_id' => $translation->dataset_id,
             'locale' => $translation->locale,
             'title' => $translation->title,
-            'data' => $resolvedData,
+            'field_values' => $resolvedData,
             'created_at' => $translation->created_at,
             'updated_at' => $translation->updated_at,
         ];
@@ -357,7 +357,7 @@ class DatasetController
             return [];
         }
 
-        $data = is_array($translation->data) ? $translation->data : [];
+        $data = is_array($translation->field_values) ? $translation->field_values : [];
 
         if ($translation->excerpt !== null && ! array_key_exists('excerpt', $data)) {
             $data['excerpt'] = $translation->excerpt;

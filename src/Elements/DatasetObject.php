@@ -16,15 +16,15 @@ class DatasetObject
 {
     /**
      * @param  array<string, mixed>  $fields  Fixed + translatable fields
-     * @param  array<string, mixed>  $config  Non-translatable extra config fields
-     * @param  array<string, mixed>  $data  Translatable extra data fields
+     * @param  array<string, mixed>  $fieldValues  Non-translatable custom field values
+     * @param  array<string, mixed>  $translatedFieldValues  Translatable custom field values
      * @param  array<array<string, mixed>>  $categories  Category name/slug pairs
      * @param  string|null  $detailBase  Base path for generating the entry URL (e.g. '/blog')
      */
     public function __construct(
         private array $fields = [],
-        private array $config = [],
-        private array $data = [],
+        private array $fieldValues = [],
+        private array $translatedFieldValues = [],
         private array $categories = [],
         private ?string $detailBase = null,
     ) {
@@ -44,20 +44,20 @@ class DatasetObject
             return $this->fields[$name];
         }
 
-        if (array_key_exists($name, $this->data)) {
-            return $this->resolveExtraValue($this->data[$name]);
+        if (array_key_exists($name, $this->translatedFieldValues)) {
+            return $this->resolveExtraValue($this->translatedFieldValues[$name]);
         }
 
-        return array_key_exists($name, $this->config)
-            ? $this->resolveExtraValue($this->config[$name])
+        return array_key_exists($name, $this->fieldValues)
+            ? $this->resolveExtraValue($this->fieldValues[$name])
             : null;
     }
 
     public function __isset(string $name): bool
     {
         return array_key_exists($name, $this->fields)
-            || array_key_exists($name, $this->data)
-            || array_key_exists($name, $this->config);
+            || array_key_exists($name, $this->translatedFieldValues)
+            || array_key_exists($name, $this->fieldValues);
     }
 
     /**
@@ -65,12 +65,12 @@ class DatasetObject
      */
     public function get(string $key, mixed $default = null): mixed
     {
-        if (array_key_exists($key, $this->data)) {
-            return $this->resolveExtraValue($this->data[$key]);
+        if (array_key_exists($key, $this->translatedFieldValues)) {
+            return $this->resolveExtraValue($this->translatedFieldValues[$key]);
         }
 
-        if (array_key_exists($key, $this->config)) {
-            return $this->resolveExtraValue($this->config[$key]);
+        if (array_key_exists($key, $this->fieldValues)) {
+            return $this->resolveExtraValue($this->fieldValues[$key]);
         }
 
         return $default;
@@ -98,9 +98,9 @@ class DatasetObject
     public function date(): ?Carbon
     {
         $value = $this->fields['date']
-            ?? $this->data['date']
-            ?? $this->config['date']
-            ?? $this->config['_legacy_date']
+            ?? $this->translatedFieldValues['date']
+            ?? $this->fieldValues['date']
+            ?? $this->fieldValues['_legacy_date']
             ?? null;
 
         if (! is_string($value) || trim($value) === '') {

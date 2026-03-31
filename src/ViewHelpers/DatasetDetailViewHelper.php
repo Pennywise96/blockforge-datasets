@@ -49,7 +49,7 @@ class DatasetDetailViewHelper extends ViewHelper
         $defaultLocale = config('app.locale', 'en');
         $translation = $dataset->translations->firstWhere('locale', $locale)
             ?? $dataset->translations->firstWhere('locale', $defaultLocale);
-        $translationData = $this->resolveTranslationData($translation?->data ?? [], $translation?->excerpt, $translation?->content);
+        $translationFieldValues = $this->resolveTranslationFieldValues($translation?->field_values ?? [], $translation?->excerpt, $translation?->content);
 
         $categories = $dataset->categories->map(fn ($cat) => [
             'id' => $cat->id,
@@ -66,26 +66,26 @@ class DatasetDetailViewHelper extends ViewHelper
                 'visibility_mode' => $dataset->visibility_mode,
                 'is_visible_now' => true,
             ],
-            config: $dataset->config ?? [],
-            data: $translationData,
+            fieldValues: $dataset->field_values ?? [],
+            translatedFieldValues: $translationFieldValues,
             categories: $categories,
         );
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $fieldValues
      * @return array<string, mixed>
      */
-    private function resolveTranslationData(array $data, ?string $excerpt, ?string $content): array
+    private function resolveTranslationFieldValues(array $fieldValues, ?string $excerpt, ?string $content): array
     {
-        if ($excerpt !== null && ! array_key_exists('excerpt', $data)) {
-            $data['excerpt'] = $excerpt;
+        if ($excerpt !== null && ! array_key_exists('excerpt', $fieldValues)) {
+            $fieldValues['excerpt'] = $excerpt;
         }
 
-        if ($content !== null && ! array_key_exists('content', $data)) {
-            $data['content'] = $content;
+        if ($content !== null && ! array_key_exists('content', $fieldValues)) {
+            $fieldValues['content'] = $content;
         }
 
-        return $data;
+        return $fieldValues;
     }
 }

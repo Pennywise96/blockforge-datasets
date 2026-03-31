@@ -13,55 +13,55 @@ use Blockforge\Cms\Support\NestedData;
 class DatasetSchemaMediaNormalizer
 {
     /**
-     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $fieldValues
      * @return array<string, mixed>
      */
-    public function normalizeConfig(?DatasetSchema $schema, array $config): array
+    public function normalizeFieldValues(?DatasetSchema $schema, array $fieldValues): array
     {
         if (! $schema instanceof DatasetSchema) {
-            return $config;
+            return $fieldValues;
         }
 
-        return $this->normalizePayload($config, $schema->getFields(), false);
+        return $this->normalizePayload($fieldValues, $schema->getFields(), false);
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $translatedFieldValues
      * @return array<string, mixed>
      */
-    public function normalizeTranslationData(?DatasetSchema $schema, array $data): array
+    public function normalizeTranslatedFieldValues(?DatasetSchema $schema, array $translatedFieldValues): array
     {
         if (! $schema instanceof DatasetSchema) {
-            return $data;
+            return $translatedFieldValues;
         }
 
-        return $this->normalizePayload($data, $schema->getFields(), true);
+        return $this->normalizePayload($translatedFieldValues, $schema->getFields(), true);
     }
 
     /**
-     * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $fieldValues
      * @return array<string, mixed>
      */
-    public function resolveConfig(?DatasetSchema $schema, array $config): array
+    public function resolveFieldValues(?DatasetSchema $schema, array $fieldValues): array
     {
         if (! $schema instanceof DatasetSchema) {
-            return $config;
+            return $fieldValues;
         }
 
-        return $this->resolvePayload($config, $schema->getFields(), false);
+        return $this->resolvePayload($fieldValues, $schema->getFields(), false);
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $translatedFieldValues
      * @return array<string, mixed>
      */
-    public function resolveTranslationData(?DatasetSchema $schema, array $data): array
+    public function resolveTranslatedFieldValues(?DatasetSchema $schema, array $translatedFieldValues): array
     {
         if (! $schema instanceof DatasetSchema) {
-            return $data;
+            return $translatedFieldValues;
         }
 
-        return $this->resolvePayload($data, $schema->getFields(), true);
+        return $this->resolvePayload($translatedFieldValues, $schema->getFields(), true);
     }
 
     /**

@@ -161,20 +161,20 @@ function containsDisplayField(field, form, translatable, scopePath = '') {
     return isSchemaFieldTranslatable(field) === translatable
 }
 
-export function buildDatasetSchemaForm(fields, configSource = {}, translationSource = {}) {
+export function buildDatasetSchemaForm(fields, fieldValuesSource = {}, translatedFieldValuesSource = {}) {
     const form = {}
 
-    applyFields(fields, form, configSource, false)
-    applyFields(fields, form, translationSource, true)
+    applyFields(fields, form, fieldValuesSource, false)
+    applyFields(fields, form, translatedFieldValuesSource, true)
 
     return form
 }
 
-export function extractDatasetSchemaConfig(fields, form) {
+export function extractDatasetSchemaFieldValues(fields, form) {
     return extractFields(fields, form, false)
 }
 
-export function extractDatasetSchemaData(fields, form) {
+export function extractDatasetSchemaTranslatedFieldValues(fields, form) {
     return extractFields(fields, form, true)
 }
 

@@ -70,7 +70,7 @@ function makeItemsEntry(CmsDatasetType $type, string $slug, string $title): CmsD
     $dataset->translations()->create([
         'locale' => 'en',
         'title' => $title,
-        'data' => [
+        'field_values' => [
             'excerpt' => 'Excerpt for '.$title,
         ],
     ]);

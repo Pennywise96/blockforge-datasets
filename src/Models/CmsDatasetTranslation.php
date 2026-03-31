@@ -15,13 +15,13 @@ class CmsDatasetTranslation extends Model
         'title',
         'excerpt',
         'content',
-        'data',
+        'field_values',
     ];
 
     protected function casts(): array
     {
         return [
-            'data' => 'array',
+            'field_values' => 'array',
         ];
     }
 

@@ -205,13 +205,13 @@ test('can create a translation for a dataset entry', function (): void {
 
     $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [
         'title' => 'My Blog Post',
-        'data' => [
+        'field_values' => [
             'subtitle' => 'Short teaser',
         ],
     ])->assertOk()
         ->assertJsonPath('title', 'My Blog Post')
         ->assertJsonPath('locale', 'en')
-        ->assertJsonPath('data.subtitle', 'Short teaser');
+        ->assertJsonPath('field_values.subtitle', 'Short teaser');
 
     $translation = CmsDatasetTranslation::query()
         ->where('dataset_id', $dataset->id)
@@ -220,7 +220,7 @@ test('can create a translation for a dataset entry', function (): void {
 
     expect($translation)->not->toBeNull()
         ->and($translation?->title)->toBe('My Blog Post')
-        ->and($translation?->data)->toMatchArray([
+        ->and($translation?->field_values)->toMatchArray([
             'subtitle' => 'Short teaser',
         ]);
 });
@@ -237,12 +237,12 @@ test('can update existing translation', function (): void {
 
     $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [
         'title' => 'New Title',
-        'data' => [
+        'field_values' => [
             'subtitle' => 'Updated subtitle',
         ],
     ])->assertOk()
         ->assertJsonPath('title', 'New Title')
-        ->assertJsonPath('data.subtitle', 'Updated subtitle');
+        ->assertJsonPath('field_values.subtitle', 'Updated subtitle');
 
     $translation = CmsDatasetTranslation::query()
         ->where('dataset_id', $dataset->id)
@@ -252,12 +252,12 @@ test('can update existing translation', function (): void {
     expect(
         CmsDatasetTranslation::query()->where('dataset_id', $dataset->id)->count()
     )->toBe(1)
-        ->and($translation?->data)->toMatchArray([
+        ->and($translation?->field_values)->toMatchArray([
             'subtitle' => 'Updated subtitle',
         ]);
 });
 
-test('normalizes and resolves schema-backed picture fields on dataset config', function (): void {
+test('normalizes and resolves schema-backed picture fields on dataset field values', function (): void {
     $type = makeDatasetType();
     $dataset = makeDataset($type);
     $mediaItem = makeDatasetMediaItem();
@@ -270,18 +270,18 @@ test('normalizes and resolves schema-backed picture fields on dataset config', f
     $this->putJson("/api/cms/datasets/{$dataset->id}", [
         'slug' => 'test-entry',
         'visibility_mode' => 'always',
-        'config' => [
+        'field_values' => [
             'image' => [
                 'id' => $mediaItem->id,
                 'filename' => 'ignored-by-normalizer.jpg',
             ],
         ],
     ])->assertOk()
-        ->assertJsonPath('config.image.id', $mediaItem->id)
-        ->assertJsonPath('config.image.media_item_id', $mediaItem->id)
-        ->assertJsonPath('config.image.filename', 'cover.jpg')
-        ->assertJsonPath('config.image.url', $mediaItem->url())
-        ->assertJsonPath('config.image.webp_url', null);
+        ->assertJsonPath('field_values.image.id', $mediaItem->id)
+        ->assertJsonPath('field_values.image.media_item_id', $mediaItem->id)
+        ->assertJsonPath('field_values.image.filename', 'cover.jpg')
+        ->assertJsonPath('field_values.image.url', $mediaItem->url())
+        ->assertJsonPath('field_values.image.webp_url', null);
 });
 
 test('translation update requires title', function (): void {
@@ -305,25 +305,25 @@ test('persists schema-backed translatable and non-translatable fields', function
     $this->putJson("/api/cms/datasets/{$dataset->id}", [
         'slug' => 'room-a',
         'visibility_mode' => 'always',
-        'config' => [
+        'field_values' => [
             'room_code' => 'A-01',
         ],
     ])->assertOk()
-        ->assertJsonPath('config.room_code', 'A-01');
+        ->assertJsonPath('field_values.room_code', 'A-01');
 
     $this->putJson("/api/cms/datasets/{$dataset->id}/translations/en", [
         'title' => 'Room A',
-        'data' => [
+        'field_values' => [
             'subtitle' => 'Lake view',
         ],
     ])->assertOk()
-        ->assertJsonPath('data.subtitle', 'Lake view');
+        ->assertJsonPath('field_values.subtitle', 'Lake view');
 
-    expect($dataset->fresh()->config)->toMatchArray([
+    expect($dataset->fresh()->field_values)->toMatchArray([
         'room_code' => 'A-01',
     ]);
 
-    expect($dataset->fresh()->translations()->where('locale', 'en')->first()?->data)->toMatchArray([
+    expect($dataset->fresh()->translations()->where('locale', 'en')->first()?->field_values)->toMatchArray([
         'subtitle' => 'Lake view',
     ]);
 });

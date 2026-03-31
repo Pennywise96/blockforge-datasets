@@ -16,14 +16,14 @@ class CmsDataset extends Model
         'slug',
         'visibility_mode',
         'sort_order',
-        'config',
+        'field_values',
     ];
 
     protected function casts(): array
     {
         return [
             'sort_order' => 'integer',
-            'config' => 'array',
+            'field_values' => 'array',
         ];
     }
 

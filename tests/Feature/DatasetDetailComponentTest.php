@@ -46,7 +46,7 @@ function makeDetailEntry(CmsDatasetType $type, string $slug, string $title = 'Te
     $dataset->translations()->create([
         'locale' => 'en',
         'title' => $title,
-        'data' => [
+        'field_values' => [
             'excerpt' => 'An excerpt.',
         ],
     ]);
@@ -203,7 +203,7 @@ test('resolves stored media references to media item objects', function (): void
     ]);
 
     $entry->translations()->where('locale', 'en')->update([
-        'data' => [
+        'field_values' => [
             'image' => [
                 'media_item_id' => $mediaItem->id,
             ],

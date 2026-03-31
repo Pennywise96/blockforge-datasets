@@ -12,34 +12,34 @@ class DatasetSchemaValidator
     ) {}
 
     /**
-     * @param  array<string, mixed>  $config
-     * @param  array<string, mixed>  $translationData
-     * @return array{config: array<string, mixed>, data: array<string, mixed>}
+     * @param  array<string, mixed>  $fieldValues
+     * @param  array<string, mixed>  $translatedFieldValues
+     * @return array{field_values: array<string, mixed>, translated_field_values: array<string, mixed>}
      */
-    public function validate(?DatasetSchema $schema, array $config, array $translationData): array
+    public function validate(?DatasetSchema $schema, array $fieldValues, array $translatedFieldValues): array
     {
         if (! $schema instanceof DatasetSchema) {
             return [
-                'config' => $config,
-                'data' => $translationData,
+                'field_values' => $fieldValues,
+                'translated_field_values' => $translatedFieldValues,
             ];
         }
 
         $merged = NestedData::merge(
             $schema->defaultConfig(),
-            $schema->extractNonTranslatableData($config),
+            $schema->extractNonTranslatableData($fieldValues),
         );
 
         $merged = NestedData::merge(
             $merged,
-            $schema->extractTranslatableData($translationData),
+            $schema->extractTranslatableData($translatedFieldValues),
         );
 
         $validated = $this->validator->validate($schema->asElementConfig(), $merged);
 
         return [
-            'config' => $schema->extractNonTranslatableData($validated),
-            'data' => $schema->extractTranslatableData($validated),
+            'field_values' => $schema->extractNonTranslatableData($validated),
+            'translated_field_values' => $schema->extractTranslatableData($validated),
         ];
     }
 }

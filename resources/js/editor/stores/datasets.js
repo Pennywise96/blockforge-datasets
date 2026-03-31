@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { buildTree } from '../utils/buildTree'
 import { slugify } from '../utils/slugify'
-import { buildDatasetSchemaForm, extractDatasetSchemaConfig, extractDatasetSchemaData } from '../utils/datasetSchema'
+import { buildDatasetSchemaForm, extractDatasetSchemaFieldValues, extractDatasetSchemaTranslatedFieldValues } from '../utils/datasetSchema'
 import { usePageContextStore } from '@blockforge-cms/editor-sdk'
 import {
     createDataset,
@@ -236,8 +236,8 @@ export const useDatasetsStore = defineStore('datasets', () => {
             visibility_ranges: normalizeVisibilityRangesForForm(entry.visibility_ranges),
             ...buildDatasetSchemaForm(
                 selectedTypeFields.value,
-                entry.config ?? {},
-                translation.data ?? {},
+                entry.field_values ?? {},
+                translation.field_values ?? {},
             ),
         }
     }
@@ -391,13 +391,13 @@ export const useDatasetsStore = defineStore('datasets', () => {
         try {
             await updateDatasetTranslation(selectedEntry.value.id, locale.value, {
                 title: detailForm.value.title,
-                data: extractDatasetSchemaData(selectedTypeFields.value, detailForm.value),
+                field_values: extractDatasetSchemaTranslatedFieldValues(selectedTypeFields.value, detailForm.value),
             })
             await updateDataset(selectedEntry.value.id, {
                 slug: detailForm.value.slug,
                 visibility_mode: detailForm.value.visibility_mode,
                 visibility_ranges: normalizeVisibilityRangesForApi(detailForm.value.visibility_ranges),
-                config: extractDatasetSchemaConfig(selectedTypeFields.value, detailForm.value),
+                field_values: extractDatasetSchemaFieldValues(selectedTypeFields.value, detailForm.value),
             })
             await loadEntries(currentPage.value)
             selectEntry(selectedEntry.value.id)
@@ -434,12 +434,12 @@ export const useDatasetsStore = defineStore('datasets', () => {
                 slug: createEntryForm.value.slug || slugify(createEntryForm.value.title),
                 visibility_mode: createEntryForm.value.visibility_mode,
                 visibility_ranges: normalizeVisibilityRangesForApi(createEntryForm.value.visibility_ranges),
-                config: extractDatasetSchemaConfig(selectedTypeFields.value, createEntryForm.value),
+                field_values: extractDatasetSchemaFieldValues(selectedTypeFields.value, createEntryForm.value),
             })
 
             await updateDatasetTranslation(created.id, locale.value, {
                 title: createEntryForm.value.title,
-                data: extractDatasetSchemaData(selectedTypeFields.value, createEntryForm.value),
+                field_values: extractDatasetSchemaTranslatedFieldValues(selectedTypeFields.value, createEntryForm.value),
             })
 
             await loadEntries(1)

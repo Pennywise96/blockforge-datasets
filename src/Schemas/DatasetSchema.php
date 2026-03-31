@@ -119,7 +119,7 @@ class DatasetSchema
     {
         $fields = [];
 
-        foreach ($this->flattenFields($this->fields) as $field) {
+        foreach ($this->leafFields() as $field) {
             if (! $field instanceof PictureField) {
                 continue;
             }
@@ -136,6 +136,15 @@ class DatasetSchema
     public function asElementConfig(): ElementConfig
     {
         return ElementConfig::make('dataset:'.$this->code)->fields($this->fields);
+    }
+
+    /**
+     * @param  Field[]  $fields
+     * @return Field[]
+     */
+    public function leafFields(): array
+    {
+        return $this->flattenFields($this->fields);
     }
 
     /**
