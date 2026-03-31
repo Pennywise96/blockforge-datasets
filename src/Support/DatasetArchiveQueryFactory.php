@@ -4,12 +4,14 @@ namespace Blockforge\Datasets\Support;
 
 use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Schemas\DatasetSchemaRegistry;
 use Illuminate\Database\Eloquent\Builder;
 
 class DatasetArchiveQueryFactory
 {
     public function __construct(
         private readonly DatasetVisibilityService $visibilityService,
+        private readonly DatasetSchemaRegistry $schemaRegistry,
     ) {}
 
     public function make(
@@ -29,17 +31,31 @@ class DatasetArchiveQueryFactory
 
         if ($search !== null) {
             $searchTerm = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+            $searchableTranslationPaths = $this->resolveSearchableTranslationPaths($type);
 
-            $query->whereHas('translations', function (Builder $translationQuery) use ($searchTerm): void {
-                $translationQuery->where(function (Builder $textQuery) use ($searchTerm): void {
-                    $textQuery->where('title', 'like', $searchTerm)
-                        ->orWhere('field_values->excerpt', 'like', $searchTerm)
-                        ->orWhere('field_values->content', 'like', $searchTerm);
+            $query->whereHas('translations', function (Builder $translationQuery) use ($searchTerm, $searchableTranslationPaths): void {
+                $translationQuery->where(function (Builder $textQuery) use ($searchTerm, $searchableTranslationPaths): void {
+                    $textQuery->where('title', 'like', $searchTerm);
+
+                    foreach ($searchableTranslationPaths as $path) {
+                        $textQuery->orWhere("field_values->{$path}", 'like', $searchTerm);
+                    }
                 });
             });
         }
 
         return $query;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function resolveSearchableTranslationPaths(CmsDatasetType $type): array
+    {
+        return $this->schemaRegistry
+            ->find($type->code)
+            ?->searchableTranslationFieldPaths()
+            ?? [];
     }
 
     private function applyVisibilityFilter(Builder $query, string $visibility): void

@@ -26,7 +26,7 @@ class DatasetSchemaValidator
         }
 
         $merged = NestedData::merge(
-            $schema->defaultConfig(),
+            $schema->defaultFieldValues(),
             $schema->extractNonTranslatableData($fieldValues),
         );
 

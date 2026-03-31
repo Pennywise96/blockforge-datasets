@@ -7,7 +7,10 @@ use Blockforge\Cms\Fields\Field;
 use Blockforge\Cms\Fields\Fieldset;
 use Blockforge\Cms\Fields\PictureField;
 use Blockforge\Cms\Fields\Repeater;
+use Blockforge\Cms\Fields\RichTextInput;
+use Blockforge\Cms\Fields\Select;
 use Blockforge\Cms\Fields\Tabs;
+use Blockforge\Cms\Fields\TextInput;
 use InvalidArgumentException;
 
 class DatasetSchema
@@ -81,9 +84,9 @@ class DatasetSchema
     /**
      * @return array<string, mixed>
      */
-    public function defaultConfig(): array
+    public function defaultFieldValues(): array
     {
-        return $this->asElementConfig()->defaultConfig();
+        return $this->asElementConfig()->defaultSettings();
     }
 
     /**
@@ -131,6 +134,26 @@ class DatasetSchema
         }
 
         return $fields;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function searchableTranslationFieldPaths(): array
+    {
+        return collect($this->leafFields())
+            ->filter(function (Field $field): bool {
+                if (! $field->isTranslatable()) {
+                    return false;
+                }
+
+                return $field instanceof TextInput
+                    || $field instanceof RichTextInput
+                    || $field instanceof Select;
+            })
+            ->map(fn (Field $field): string => $field->getName())
+            ->values()
+            ->all();
     }
 
     public function asElementConfig(): ElementConfig

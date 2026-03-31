@@ -1,6 +1,7 @@
 <?php
 
 use Blockforge\Cms\Config\Page;
+use Blockforge\Cms\Fields\TextInput;
 use Blockforge\Cms\Models\CmsPage;
 use Blockforge\Cms\Models\CmsSite;
 use Blockforge\Cms\Models\CmsSiteLocale;
@@ -10,6 +11,7 @@ use Blockforge\Datasets\Models\CmsDataset;
 use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetDetailPage;
 use Blockforge\Datasets\Models\CmsDatasetType;
+use Blockforge\Datasets\Schemas\DatasetSchema;
 use Blockforge\Datasets\ViewHelpers\DatasetItemsViewHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -217,6 +219,55 @@ test('applies search filters from the request query string', function (): void {
 
     expect($captured)->toHaveCount(1)
         ->and($captured[0]['post']->slug)->toBe('laravel-post');
+});
+
+test('search only matches schema-declared translatable fields', function (): void {
+    $site = makeItemsTestSite();
+    $locale = makeItemsLocale($site);
+    $type = makeItemsType('blog');
+
+    $schemaPage = Page::make($site->handle)
+        ->domain('items.test')
+        ->registerDatasetSchemas([
+            DatasetSchema::make('blog')->fields([
+                TextInput::make('subtitle')->translatable(),
+            ]),
+        ]);
+
+    $matched = CmsDataset::query()->create([
+        'type_id' => $type->id,
+        'slug' => 'schema-match',
+        'visibility_mode' => 'always',
+    ]);
+    $matched->translations()->create([
+        'locale' => 'en',
+        'title' => 'Neutral Title',
+        'field_values' => [
+            'subtitle' => 'Laravel teaser',
+            'excerpt' => 'ignored legacy field',
+        ],
+    ]);
+
+    $ignored = CmsDataset::query()->create([
+        'type_id' => $type->id,
+        'slug' => 'legacy-only',
+        'visibility_mode' => 'always',
+    ]);
+    $ignored->translations()->create([
+        'locale' => 'en',
+        'title' => 'Another Neutral Title',
+        'field_values' => [
+            'excerpt' => 'Laravel legacy excerpt',
+        ],
+    ]);
+
+    bindItemsRuntimeContext($site, $locale, '/blog', ['q' => 'laravel']);
+    app()->instance(Page::class, $schemaPage);
+
+    $captured = executeItemsViewHelper(['type' => 'blog', 'as' => 'post']);
+
+    expect($captured)->toHaveCount(1)
+        ->and($captured[0]['post']->slug)->toBe('schema-match');
 });
 
 test('does not collide with the page object from template scope', function (): void {
