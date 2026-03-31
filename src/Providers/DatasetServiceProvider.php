@@ -34,10 +34,7 @@ class DatasetServiceProvider extends ServiceProvider
 
         $this->loadMigrationsFrom($packageRoot.'/database/migrations');
 
-        View::addLocation($packageRoot.'/resources/views');
-        $this->loadViewsFrom($packageRoot.'/resources/views', 'datasets');
-
-        Forte::app()->include($packageRoot.'/resources/views/**');
+        $this->registerPackageViews($packageRoot);
 
         $this->publishes([
             $packageRoot.'/dist' => public_path('vendor/blockforge/datasets'),
@@ -56,6 +53,20 @@ class DatasetServiceProvider extends ServiceProvider
         $this->app->booted(function (): void {
             $this->registerEditorIntegration();
         });
+    }
+
+    protected function registerPackageViews(string $packageRoot): void
+    {
+        $viewsPath = $packageRoot.'/resources/views';
+
+        if (! is_dir($viewsPath)) {
+            return;
+        }
+
+        View::addLocation($viewsPath);
+        $this->loadViewsFrom($viewsPath, 'datasets');
+
+        Forte::app()->include($viewsPath.'/**');
     }
 
     private function registerEditorIntegration(): void
