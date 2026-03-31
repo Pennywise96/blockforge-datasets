@@ -1,6 +1,6 @@
 {
   "resources/css/editor.css": {
-    "file": "assets/editorCss-DOIJx08B.css",
+    "file": "assets/editorCss-CHWWg3vs.css",
     "src": "resources/css/editor.css",
     "isEntry": true,
     "name": "editorCss",
@@ -9,12 +9,12 @@
     ]
   },
   "resources/js/editor.js": {
-    "file": "assets/editor-DlF32YaB.js",
+    "file": "assets/editor-BKFv1MJ0.js",
     "name": "editor",
     "src": "resources/js/editor.js",
     "isEntry": true,
     "css": [
-      "assets/editor-CFvh9llQ.css"
+      "assets/editor-CB30lM1J.css"
     ]
   }
 }

@@ -63,14 +63,6 @@ const filteredEntries = computed(() => {
     return props.entries.filter((entry) => entryMatchesSearch(entry, query))
 })
 
-const visibleNowCount = computed(() =>
-    props.entries.filter((entry) => entry?.is_visible_now).length,
-)
-
-const inactiveCount = computed(() =>
-    Math.max(props.entries.length - visibleNowCount.value, 0),
-)
-
 watch(
     () => props.hasSelectedType,
     (hasSelectedType) => {
@@ -111,24 +103,6 @@ function entryMatchesSearch(entry, query) {
         .toLowerCase()
 
     return haystack.includes(query)
-}
-
-function entryMonogram(entry) {
-    const source = entryTitle(entry).trim()
-
-    return source === '' ? '#' : source.charAt(0).toUpperCase()
-}
-
-function visibilityTextClasses(entry) {
-    if (entry?.is_visible_now) {
-        return 'text-emerald-300'
-    }
-
-    if (entry?.visibility_mode === 'scheduled') {
-        return 'text-amber-200'
-    }
-
-    return 'text-[var(--bf-ui-muted)]'
 }
 
 function visibilityPillClasses(entry) {
@@ -228,45 +202,27 @@ function handleDragEnd() {
             </div>
 
             <div v-else class="px-3 py-3">
-                <div class="overflow-hidden rounded-[18px] border border-[rgba(120,146,164,0.14)] bg-[#0d1216] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                    <div class="border-b border-[rgba(120,146,164,0.12)] px-3 py-3">
-                        <div class="flex flex-col gap-3">
-                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="min-w-0">
-                                    <p class="truncate text-[13px] font-medium tracking-[-0.01em] text-white/92">
-                                        {{ selectedTypeName }}
-                                    </p>
-                                    <p class="mt-1 text-[11px] text-white/42">
-                                        {{ totalEntries || entries.length }} total entries
-                                        <span class="mx-1 text-white/24">/</span>
-                                        {{ selectedCategoryName || 'All categories' }}
-                                        <span class="mx-1 text-white/24">/</span>
-                                        {{ visibilityLabel }}
-                                    </p>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2 text-[10px] uppercase tracking-[0.14em] sm:min-w-[180px]">
-                                    <div class="rounded-[12px] border border-white/[0.06] bg-white/[0.03] px-2.5 py-2 text-white/64">
-                                        <div class="text-white/34">Visible</div>
-                                        <div class="mt-1 text-[12px] font-semibold tracking-normal text-emerald-200">
-                                            {{ visibleNowCount }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-[12px] border border-white/[0.06] bg-white/[0.03] px-2.5 py-2 text-white/64">
-                                        <div class="text-white/34">Inactive</div>
-                                        <div class="mt-1 text-[12px] font-semibold tracking-normal text-white/78">
-                                            {{ inactiveCount }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
+                <div class="overflow-hidden rounded-[16px] border border-[rgba(120,146,164,0.14)] bg-[#0d1216]">
+                    <div class="border-b border-[rgba(120,146,164,0.12)] px-3 py-2.5">
+                        <div class="flex items-center gap-2">
                             <BfSearchInput
                                 v-model="searchQuery"
                                 placeholder="Search this page by title, slug, or category..."
-                                class="min-w-0"
+                                class="min-w-0 flex-1"
                             />
+
+                            <span class="shrink-0 text-[11px] text-white/42">
+                                {{ filteredEntries.length }} shown
+                            </span>
                         </div>
+
+                        <p class="mt-2 text-[11px] text-white/42">
+                            {{ selectedCategoryName || 'All categories' }}
+                            <span class="mx-1 text-white/24">/</span>
+                            {{ visibilityLabel }}
+                            <span class="mx-1 text-white/24">/</span>
+                            {{ totalEntries || entries.length }} total
+                        </p>
                     </div>
 
                     <div v-if="entries.length === 0" class="px-4 py-8">
@@ -306,55 +262,32 @@ function handleDragEnd() {
                             @dragend="handleDragEnd"
                             @click="emit('select', entry)"
                         >
-                            <template #leading>
-                                <div
-                                    class="flex h-11 w-11 items-center justify-center rounded-[14px] border text-[13px] font-semibold uppercase tracking-[0.06em] transition-[border-color,background-color,color] duration-100"
-                                    :class="selectedEntryId === entry.id
-                                        ? 'border-[#46c0ff]/28 bg-[#121e26] text-[#8edfff]'
-                                        : 'border-white/[0.08] bg-white/[0.03] text-white/66'"
-                                >
-                                    {{ entryMonogram(entry) }}
-                                </div>
-                            </template>
-
                             <template #default>
                                 <div class="min-w-0">
-                                    <div class="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
-                                        <div class="min-w-0">
-                                            <div class="flex min-w-0 flex-wrap items-center gap-2">
-                                                <p
-                                                    class="truncate text-[13px] font-medium tracking-[-0.01em]"
-                                                    :class="selectedEntryId === entry.id ? 'text-[#8edfff]' : 'text-white/92'"
-                                                >
-                                                    {{ entryTitle(entry) }}
-                                                </p>
-                                                <span
-                                                    class="inline-flex min-h-[18px] items-center rounded-full border px-[8px] text-[10px] font-medium"
-                                                    :class="visibilityPillClasses(entry)"
-                                                >
-                                                    {{ entry.visibility_label ?? (entry.is_visible_now ? 'Visible now' : 'Not visible') }}
-                                                </span>
-                                            </div>
-
-                                            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-white/42">
-                                                <span class="font-mono text-white/48">{{ entry.slug }}</span>
-                                                <span class="text-white/24">/</span>
-                                                <span :class="visibilityTextClasses(entry)">
-                                                    {{ entry.visibility_mode === 'always' ? 'Always active' : entry.visibility_mode === 'scheduled' ? 'Scheduled' : 'Disabled' }}
-                                                </span>
-                                                <span class="text-white/24">/</span>
-                                                <span>{{ entryUpdatedLabel(entry) }}</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="flex shrink-0 flex-wrap gap-1.5">
-                                            <span class="inline-flex min-h-[18px] items-center rounded-full bg-white/[0.04] px-[7px] text-[10px] font-medium text-white/52">
-                                                {{ entry.categories?.length ?? 0 }} categories
-                                            </span>
-                                        </div>
+                                    <div class="flex min-w-0 flex-wrap items-center gap-2">
+                                        <p
+                                            class="truncate text-[13px] font-medium tracking-[-0.01em]"
+                                            :class="selectedEntryId === entry.id ? 'text-[#8edfff]' : 'text-white/92'"
+                                        >
+                                            {{ entryTitle(entry) }}
+                                        </p>
+                                        <span
+                                            class="inline-flex min-h-[18px] items-center rounded-full border px-[8px] text-[10px] font-medium"
+                                            :class="visibilityPillClasses(entry)"
+                                        >
+                                            {{ entry.visibility_label ?? (entry.is_visible_now ? 'Visible now' : 'Not visible') }}
+                                        </span>
                                     </div>
 
-                                    <div v-if="entry.categories?.length" class="mt-2.5 flex flex-wrap gap-1.5">
+                                    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-white/42">
+                                        <span class="font-mono text-white/48">{{ entry.slug }}</span>
+                                        <span class="text-white/24">/</span>
+                                        <span>{{ entryUpdatedLabel(entry) }}</span>
+                                        <span class="text-white/24">/</span>
+                                        <span>{{ entry.categories?.length ?? 0 }} categories</span>
+                                    </div>
+
+                                    <div v-if="entry.categories?.length" class="mt-2 flex flex-wrap gap-1.5">
                                         <span
                                             v-for="category in previewCategories(entry)"
                                             :key="category.id"
