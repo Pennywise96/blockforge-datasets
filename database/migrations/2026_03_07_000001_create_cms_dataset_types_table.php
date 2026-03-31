@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('bf_dataset_types', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
+            $table->string('code')->unique();
             $table->text('description')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();

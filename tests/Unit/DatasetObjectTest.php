@@ -143,19 +143,6 @@ it('date() returns null when no date-like value exists', function (): void {
     expect($obj->date())->toBeNull();
 });
 
-it('date() falls back to the legacy stored dataset date', function (): void {
-    $obj = new DatasetObject(
-        fieldValues: ['_legacy_date' => '2026-01-15'],
-    );
-
-    $date = $obj->date();
-
-    expect($date)->not->toBeNull()
-        ->and($date?->year)->toBe(2026)
-        ->and($date?->month)->toBe(1)
-        ->and($date?->day)->toBe(15);
-});
-
 it('url() returns null when no detailBase is set', function (): void {
     $obj = new DatasetObject(fields: ['slug' => 'artikel-1']);
 

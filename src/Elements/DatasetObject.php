@@ -100,7 +100,6 @@ class DatasetObject
         $value = $this->fields['date']
             ?? $this->translatedFieldValues['date']
             ?? $this->fieldValues['date']
-            ?? $this->fieldValues['_legacy_date']
             ?? null;
 
         if (! is_string($value) || trim($value) === '') {

@@ -125,7 +125,6 @@ class DatasetItemsViewHelper extends ViewHelper
         return $query->get()->map(function (CmsDataset $dataset) use ($locale, $defaultLocale, $typeModel, $detailBase): DatasetObject {
             $translation = $dataset->translations->firstWhere('locale', $locale)
                 ?? $dataset->translations->firstWhere('locale', $defaultLocale);
-            $translationFieldValues = $this->resolveTranslationFieldValues($translation?->field_values ?? [], $translation?->excerpt, $translation?->content);
 
             $categories = $dataset->categories->map(fn ($cat) => [
                 'id' => $cat->id,
@@ -143,7 +142,7 @@ class DatasetItemsViewHelper extends ViewHelper
                     'is_visible_now' => app(DatasetVisibilityService::class)->isVisibleNow($dataset),
                 ],
                 fieldValues: $dataset->field_values ?? [],
-                translatedFieldValues: $translationFieldValues,
+                translatedFieldValues: $translation?->field_values ?? [],
                 categories: $categories,
                 detailBase: $detailBase,
             );
@@ -161,22 +160,5 @@ class DatasetItemsViewHelper extends ViewHelper
         return is_numeric($limit) && (int) $limit > 0
             ? (int) $limit
             : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $fieldValues
-     * @return array<string, mixed>
-     */
-    private function resolveTranslationFieldValues(array $fieldValues, ?string $excerpt, ?string $content): array
-    {
-        if ($excerpt !== null && ! array_key_exists('excerpt', $fieldValues)) {
-            $fieldValues['excerpt'] = $excerpt;
-        }
-
-        if ($content !== null && ! array_key_exists('content', $fieldValues)) {
-            $fieldValues['content'] = $content;
-        }
-
-        return $fieldValues;
     }
 }

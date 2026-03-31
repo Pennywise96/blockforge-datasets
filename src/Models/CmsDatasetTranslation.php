@@ -13,8 +13,6 @@ class CmsDatasetTranslation extends Model
         'dataset_id',
         'locale',
         'title',
-        'excerpt',
-        'content',
         'field_values',
     ];
 

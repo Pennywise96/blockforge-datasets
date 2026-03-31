@@ -6,6 +6,7 @@ use Blockforge\Datasets\Models\CmsDatasetCategory;
 use Blockforge\Datasets\Models\CmsDatasetType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class DatasetCategoryController
@@ -24,7 +25,14 @@ class DatasetCategoryController
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:255'],
+            'slug' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('bf_dataset_categories', 'slug')->where(
+                    fn ($query) => $query->where('type_id', $datasetType->id)
+                ),
+            ],
             'parent_id' => ['nullable', 'integer', 'exists:bf_dataset_categories,id'],
         ]);
 
@@ -45,7 +53,14 @@ class DatasetCategoryController
     {
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
-            'slug' => ['sometimes', 'string', 'max:255'],
+            'slug' => [
+                'sometimes',
+                'string',
+                'max:255',
+                Rule::unique('bf_dataset_categories', 'slug')
+                    ->where(fn ($query) => $query->where('type_id', $datasetCategory->type_id))
+                    ->ignore($datasetCategory->id),
+            ],
             'parent_id' => ['nullable', 'integer', 'exists:bf_dataset_categories,id'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);

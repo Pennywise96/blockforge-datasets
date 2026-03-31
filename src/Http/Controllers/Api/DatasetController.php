@@ -14,6 +14,7 @@ use Blockforge\Datasets\Support\DatasetVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class DatasetController
@@ -37,10 +38,6 @@ class DatasetController
 
         $visibilityFilter = $request->string('visibility')->toString();
 
-        if ($visibilityFilter === '' && $request->filled('status')) {
-            $visibilityFilter = $request->string('status')->toString() === 'published' ? 'visible' : 'disabled';
-        }
-
         $this->applyEditorVisibilityFilter($query, $visibilityFilter === '' ? 'all' : $visibilityFilter);
 
         if ($request->filled('category')) {
@@ -57,8 +54,16 @@ class DatasetController
     {
         $validated = $request->validate([
             'type_id' => ['required', 'integer', 'exists:bf_dataset_types,id'],
-            'slug' => ['required', 'string', 'max:255'],
+            'slug' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('bf_datasets', 'slug')->where(
+                    fn ($query) => $query->where('type_id', $request->integer('type_id'))
+                ),
+            ],
             'visibility_mode' => ['sometimes', 'in:disabled,always,scheduled'],
+            'status' => ['prohibited'],
             'visibility_ranges' => ['nullable', 'array'],
             'visibility_ranges.*.starts_at' => ['nullable', 'date'],
             'visibility_ranges.*.ends_at' => ['nullable', 'date'],
@@ -104,8 +109,16 @@ class DatasetController
     public function update(Request $request, CmsDataset $dataset): JsonResponse
     {
         $validated = $request->validate([
-            'slug' => ['sometimes', 'string', 'max:255'],
+            'slug' => [
+                'sometimes',
+                'string',
+                'max:255',
+                Rule::unique('bf_datasets', 'slug')
+                    ->where(fn ($query) => $query->where('type_id', $dataset->type_id))
+                    ->ignore($dataset->id),
+            ],
             'visibility_mode' => ['sometimes', 'in:disabled,always,scheduled'],
+            'status' => ['prohibited'],
             'visibility_ranges' => ['nullable', 'array'],
             'visibility_ranges.*.starts_at' => ['nullable', 'date'],
             'visibility_ranges.*.ends_at' => ['nullable', 'date'],
@@ -169,7 +182,7 @@ class DatasetController
             ->where('locale', $locale)
             ->first();
 
-        $existingTranslationData = $this->translationPayloadWithLegacyFields($existingTranslation);
+        $existingTranslationData = $this->translationPayload($existingTranslation);
         $mergedTranslationData = array_replace_recursive(
             $existingTranslationData,
             $validated['field_values'] ?? [],
@@ -262,7 +275,7 @@ class DatasetController
      */
     private function serializeTranslation(CmsDatasetTranslation $translation, ?DatasetSchema $schema = null): array
     {
-        $translationData = $this->translationPayloadWithLegacyFields($translation);
+        $translationData = $this->translationPayload($translation);
         $resolvedData = $this->mediaNormalizer->resolveTranslatedFieldValues(
             $schema,
             $schema?->extractTranslatableData($translationData) ?? $translationData,
@@ -297,10 +310,6 @@ class DatasetController
 
         if (is_string($mode) && in_array($mode, ['disabled', 'always', 'scheduled'], true)) {
             return $mode;
-        }
-
-        if (array_key_exists('status', $validated)) {
-            return $validated['status'] === 'published' ? 'always' : 'disabled';
         }
 
         return $fallback ?? 'disabled';
@@ -345,28 +354,18 @@ class DatasetController
     {
         $translation = $dataset->translations->firstWhere('locale', $locale);
 
-        return $this->translationPayloadWithLegacyFields($translation);
+        return $this->translationPayload($translation);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function translationPayloadWithLegacyFields(?CmsDatasetTranslation $translation): array
+    private function translationPayload(?CmsDatasetTranslation $translation): array
     {
         if (! $translation instanceof CmsDatasetTranslation) {
             return [];
         }
 
-        $data = is_array($translation->field_values) ? $translation->field_values : [];
-
-        if ($translation->excerpt !== null && ! array_key_exists('excerpt', $data)) {
-            $data['excerpt'] = $translation->excerpt;
-        }
-
-        if ($translation->content !== null && ! array_key_exists('content', $data)) {
-            $data['content'] = $translation->content;
-        }
-
-        return $data;
+        return is_array($translation->field_values) ? $translation->field_values : [];
     }
 }

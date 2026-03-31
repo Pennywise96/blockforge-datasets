@@ -53,6 +53,21 @@ test('create category requires name and slug', function (): void {
         ->assertUnprocessable();
 });
 
+test('create category rejects duplicate slugs within the same type', function (): void {
+    $type = makeType();
+    CmsDatasetCategory::query()->create([
+        'type_id' => $type->id,
+        'name' => 'Tech',
+        'slug' => 'tech',
+    ]);
+
+    $this->postJson("/api/cms/datasets/types/{$type->id}/categories", [
+        'name' => 'Technology',
+        'slug' => 'tech',
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['slug']);
+});
+
 test('can create a nested category', function (): void {
     $type = makeType();
     $parent = CmsDatasetCategory::query()->create([

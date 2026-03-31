@@ -12,11 +12,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('type_id')->constrained('bf_dataset_types')->cascadeOnDelete();
             $table->string('slug');
-            $table->date('date')->nullable();
-            $table->enum('status', ['draft', 'published'])->default('draft');
+            $table->string('visibility_mode')->default('disabled');
             $table->unsignedInteger('sort_order')->default(0);
-            $table->json('config')->nullable();
+            $table->json('field_values')->nullable();
             $table->timestamps();
+
+            $table->unique(['type_id', 'slug']);
+            $table->index(['type_id', 'created_at']);
+            $table->index(['type_id', 'visibility_mode']);
         });
     }
 

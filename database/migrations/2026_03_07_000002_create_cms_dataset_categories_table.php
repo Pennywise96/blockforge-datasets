@@ -16,6 +16,9 @@ return new class extends Migration
             $table->string('slug');
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
+
+            $table->unique(['type_id', 'slug']);
+            $table->index(['type_id', 'parent_id', 'sort_order']);
         });
     }
 

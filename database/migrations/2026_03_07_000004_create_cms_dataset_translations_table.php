@@ -13,9 +13,7 @@ return new class extends Migration
             $table->foreignId('dataset_id')->constrained('bf_datasets')->cascadeOnDelete();
             $table->string('locale');
             $table->string('title');
-            $table->text('excerpt')->nullable();
-            $table->longText('content')->nullable();
-            $table->json('data')->nullable();
+            $table->json('field_values')->nullable();
             $table->timestamps();
 
             $table->unique(['dataset_id', 'locale']);

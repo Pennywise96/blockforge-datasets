@@ -33,8 +33,8 @@ class DatasetArchiveQueryFactory
             $query->whereHas('translations', function (Builder $translationQuery) use ($searchTerm): void {
                 $translationQuery->where(function (Builder $textQuery) use ($searchTerm): void {
                     $textQuery->where('title', 'like', $searchTerm)
-                        ->orWhere('excerpt', 'like', $searchTerm)
-                        ->orWhere('content', 'like', $searchTerm);
+                        ->orWhere('field_values->excerpt', 'like', $searchTerm)
+                        ->orWhere('field_values->content', 'like', $searchTerm);
                 });
             });
         }

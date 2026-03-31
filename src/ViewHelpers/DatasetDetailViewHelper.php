@@ -49,7 +49,6 @@ class DatasetDetailViewHelper extends ViewHelper
         $defaultLocale = config('app.locale', 'en');
         $translation = $dataset->translations->firstWhere('locale', $locale)
             ?? $dataset->translations->firstWhere('locale', $defaultLocale);
-        $translationFieldValues = $this->resolveTranslationFieldValues($translation?->field_values ?? [], $translation?->excerpt, $translation?->content);
 
         $categories = $dataset->categories->map(fn ($cat) => [
             'id' => $cat->id,
@@ -67,25 +66,8 @@ class DatasetDetailViewHelper extends ViewHelper
                 'is_visible_now' => true,
             ],
             fieldValues: $dataset->field_values ?? [],
-            translatedFieldValues: $translationFieldValues,
+            translatedFieldValues: $translation?->field_values ?? [],
             categories: $categories,
         );
-    }
-
-    /**
-     * @param  array<string, mixed>  $fieldValues
-     * @return array<string, mixed>
-     */
-    private function resolveTranslationFieldValues(array $fieldValues, ?string $excerpt, ?string $content): array
-    {
-        if ($excerpt !== null && ! array_key_exists('excerpt', $fieldValues)) {
-            $fieldValues['excerpt'] = $excerpt;
-        }
-
-        if ($content !== null && ! array_key_exists('content', $fieldValues)) {
-            $fieldValues['content'] = $content;
-        }
-
-        return $fieldValues;
     }
 }

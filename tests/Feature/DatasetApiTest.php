@@ -146,6 +146,17 @@ test('create dataset requires type_id and slug', function (): void {
         ->assertUnprocessable();
 });
 
+test('create dataset rejects duplicate slugs within the same type', function (): void {
+    $type = makeDatasetType();
+    makeDataset($type, ['slug' => 'my-post']);
+
+    $this->postJson('/api/cms/datasets', [
+        'type_id' => $type->id,
+        'slug' => 'my-post',
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['slug']);
+});
+
 test('create dataset rejects invalid visibility mode', function (): void {
     $type = makeDatasetType();
 
@@ -154,6 +165,17 @@ test('create dataset rejects invalid visibility mode', function (): void {
         'slug' => 'post',
         'visibility_mode' => 'archived',
     ])->assertUnprocessable();
+});
+
+test('create dataset rejects legacy status payloads', function (): void {
+    $type = makeDatasetType();
+
+    $this->postJson('/api/cms/datasets', [
+        'type_id' => $type->id,
+        'slug' => 'post',
+        'status' => 'published',
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['status']);
 });
 
 test('can show a dataset entry', function (): void {
@@ -182,6 +204,18 @@ test('can update a dataset entry', function (): void {
         ->assertJsonPath('visibility_mode', 'scheduled')
         ->assertJsonPath('visibility_ranges.0.starts_at', '2026-06-15T08:00:00.000000Z')
         ->assertJsonPath('visibility_ranges.0.ends_at', '2026-06-20T20:00:00.000000Z');
+});
+
+test('update dataset rejects legacy status payloads', function (): void {
+    $type = makeDatasetType();
+    $dataset = makeDataset($type, ['visibility_mode' => 'always']);
+
+    $this->putJson("/api/cms/datasets/{$dataset->id}", [
+        'status' => 'draft',
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['status']);
+
+    expect($dataset->fresh()->visibility_mode)->toBe('always');
 });
 
 test('can delete a dataset entry', function (): void {
