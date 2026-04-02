@@ -14,6 +14,7 @@ class CmsDatasetDetailPage extends Model
     protected $fillable = [
         'site_id',
         'page_id',
+        'archive_page_id',
         'dataset_type_id',
     ];
 
@@ -25,6 +26,11 @@ class CmsDatasetDetailPage extends Model
     public function page(): BelongsTo
     {
         return $this->belongsTo(CmsPage::class, 'page_id');
+    }
+
+    public function archivePage(): BelongsTo
+    {
+        return $this->belongsTo(CmsPage::class, 'archive_page_id');
     }
 
     public function datasetType(): BelongsTo

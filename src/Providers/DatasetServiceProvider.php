@@ -3,11 +3,13 @@
 namespace Blockforge\Datasets\Providers;
 
 use Blockforge\Cms\Loader\CmsConfigCache;
+use Blockforge\Cms\Models\CmsPage;
 use Blockforge\Cms\Routing\PageRouteFallbackRegistry;
 use Blockforge\Cms\Support\EditorPackageRegistry;
 use Blockforge\Cms\ViewHelpers\ViewHelperRegistry;
 use Blockforge\Datasets\Routing\CanonicalDatasetDetailPageResolver;
 use Blockforge\Datasets\Schemas\DatasetSchema;
+use Blockforge\Datasets\Support\DatasetDetailPageService;
 use Blockforge\Datasets\ViewHelpers\DatasetCategoriesViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetContextViewHelper;
 use Blockforge\Datasets\ViewHelpers\DatasetDetailViewHelper;
@@ -49,6 +51,10 @@ class DatasetServiceProvider extends ServiceProvider
         Route::middleware('api')
             ->prefix('api')
             ->group($packageRoot.'/routes/api.php');
+
+        CmsPage::saved(function (CmsPage $page): void {
+            app(DatasetDetailPageService::class)->syncMappingForPage($page);
+        });
 
         $this->app->booted(function (): void {
             $this->registerEditorIntegration();

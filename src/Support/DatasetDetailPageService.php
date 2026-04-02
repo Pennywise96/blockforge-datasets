@@ -30,7 +30,7 @@ class DatasetDetailPageService
     {
         return CmsDatasetDetailPage::query()
             ->where('page_id', $page->id)
-            ->with(['datasetType', 'page.parent.translations', 'page.translations'])
+            ->with(['datasetType', 'archivePage.translations', 'page.parent.translations', 'page.translations'])
             ->first();
     }
 
@@ -38,12 +38,16 @@ class DatasetDetailPageService
     {
         $mappings = CmsDatasetDetailPage::query()
             ->where('site_id', $archivePage->site_id)
+            ->where(function (Builder $query) use ($archivePage): void {
+                $query->where('archive_page_id', $archivePage->id)
+                    ->orWhereHas('page', fn (Builder $pageQuery) => $pageQuery->where('parent_id', $archivePage->id));
+            })
             ->whereHas('page', fn (Builder $query) => $query
-                ->where('parent_id', $archivePage->id)
                 ->whereIn('status', $pageStatuses))
             ->with([
                 'datasetType',
                 'page' => fn ($query) => $query->whereIn('status', $pageStatuses),
+                'archivePage.translations',
                 'page.translations',
                 'page.parent.translations',
             ])
@@ -63,7 +67,7 @@ class DatasetDetailPageService
         return CmsDatasetDetailPage::query()
             ->where('site_id', $siteId)
             ->where('dataset_type_id', $datasetTypeId)
-            ->with(['page.parent.translations', 'page.translations', 'datasetType'])
+            ->with(['archivePage.translations', 'page.parent.translations', 'page.translations', 'datasetType'])
             ->first();
     }
 
@@ -147,6 +151,7 @@ class DatasetDetailPageService
             ['page_id' => $page->id],
             [
                 'site_id' => $page->site_id,
+                'archive_page_id' => $page->parent_id,
                 'dataset_type_id' => $datasetType->id,
             ],
         );
@@ -156,6 +161,54 @@ class DatasetDetailPageService
         }
 
         return $this->mappingForPage($page->fresh());
+    }
+
+    public function syncMappingForPage(CmsPage $page): void
+    {
+        $mapping = CmsDatasetDetailPage::query()->where('page_id', $page->id)->first();
+
+        if (! $mapping instanceof CmsDatasetDetailPage) {
+            return;
+        }
+
+        if (! $page->isStandardDoktype() || $page->parent_id === null) {
+            $mapping->delete();
+
+            return;
+        }
+
+        $typeConflict = CmsDatasetDetailPage::query()
+            ->where('site_id', $page->site_id)
+            ->where('dataset_type_id', $mapping->dataset_type_id)
+            ->where('page_id', '!=', $page->id)
+            ->exists();
+
+        if ($typeConflict) {
+            throw ValidationException::withMessages([
+                'dataset_detail_type_id' => ['This dataset type already has a canonical detail page in this site.'],
+            ]);
+        }
+
+        $archiveConflict = CmsDatasetDetailPage::query()
+            ->where('site_id', $page->site_id)
+            ->where('archive_page_id', $page->parent_id)
+            ->where('page_id', '!=', $page->id)
+            ->exists();
+
+        if ($archiveConflict) {
+            throw ValidationException::withMessages([
+                'parent_id' => ['This archive page already owns a canonical dataset detail page.'],
+            ]);
+        }
+
+        if ((int) $mapping->site_id === (int) $page->site_id && (int) $mapping->archive_page_id === (int) $page->parent_id) {
+            return;
+        }
+
+        $mapping->update([
+            'site_id' => $page->site_id,
+            'archive_page_id' => $page->parent_id,
+        ]);
     }
 
     /** @return string[] */

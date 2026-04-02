@@ -172,3 +172,66 @@ test('rejects a second canonical detail page under the same archive page', funct
     ])->assertUnprocessable()
         ->assertJsonValidationErrors(['is_dataset_detail_page']);
 });
+
+test('moving a canonical detail page syncs its archive mapping', function (): void {
+    $site = makeDatasetDetailSite();
+    app()->instance(CmsSite::class, $site);
+
+    $firstArchivePage = makeDatasetDetailPage($site, ['slug' => 'blog']);
+    $secondArchivePage = makeDatasetDetailPage($site, ['slug' => 'news']);
+    $detailPage = makeDatasetDetailPage($site, [
+        'slug' => 'blog/detail',
+        'parent_id' => $firstArchivePage->id,
+    ]);
+    $type = makeDatasetDetailType('blog');
+
+    $this->putJson("/api/cms/datasets/pages/{$detailPage->id}/detail-settings", [
+        'is_dataset_detail_page' => true,
+        'dataset_detail_type_id' => $type->id,
+    ])->assertOk();
+
+    $this->putJson("/api/cms/pages/{$detailPage->id}/move", [
+        'parent_id' => $secondArchivePage->id,
+        'sort_order' => 0,
+    ])->assertOk();
+
+    expect(CmsDatasetDetailPage::query()->where('page_id', $detailPage->id)->value('archive_page_id'))
+        ->toBe($secondArchivePage->id);
+});
+
+test('moving a canonical detail page into an occupied archive is rejected', function (): void {
+    $site = makeDatasetDetailSite();
+    app()->instance(CmsSite::class, $site);
+
+    $blogArchivePage = makeDatasetDetailPage($site, ['slug' => 'blog']);
+    $newsArchivePage = makeDatasetDetailPage($site, ['slug' => 'news']);
+    $blogDetailPage = makeDatasetDetailPage($site, [
+        'slug' => 'blog/blog-detail',
+        'parent_id' => $blogArchivePage->id,
+    ]);
+    $newsDetailPage = makeDatasetDetailPage($site, [
+        'slug' => 'news/news-detail',
+        'parent_id' => $newsArchivePage->id,
+    ]);
+    $blogType = makeDatasetDetailType('blog');
+    $newsType = makeDatasetDetailType('news');
+
+    $this->putJson("/api/cms/datasets/pages/{$blogDetailPage->id}/detail-settings", [
+        'is_dataset_detail_page' => true,
+        'dataset_detail_type_id' => $blogType->id,
+    ])->assertOk();
+
+    $this->putJson("/api/cms/datasets/pages/{$newsDetailPage->id}/detail-settings", [
+        'is_dataset_detail_page' => true,
+        'dataset_detail_type_id' => $newsType->id,
+    ])->assertOk();
+
+    $this->putJson("/api/cms/pages/{$blogDetailPage->id}/move", [
+        'parent_id' => $newsArchivePage->id,
+        'sort_order' => 0,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['parent_id']);
+
+    expect(CmsDatasetDetailPage::query()->where('page_id', $blogDetailPage->id)->value('archive_page_id'))
+        ->toBe($blogArchivePage->id);
+});
